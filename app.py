@@ -4,7 +4,7 @@ import json
 import os
 from extractor import extract_pack_data, extract_price_data
 from pdf_generator import generate_packing_list, generate_invoice
-from google_sheets_updater import update_google_sheet
+from google_sheets_updater import update_google_sheet, load_saved_data
 
 st.set_page_config(page_title="Invoice & Packing List Generator", layout="wide")
 
@@ -27,7 +27,7 @@ if st.sidebar.button("確認 API Key"):
 st.sidebar.markdown("---")
 st.sidebar.subheader("Google Sheet 設定")
 sheet_url = st.sidebar.text_input("總表 Google Sheet URL")
-google_creds = st.sidebar.text_area("Google Service Account Credentials (JSON)", help="貼上 Google 提供給您的 JSON 憑證")
+google_creds = st.sidebar.text_area("Google Service Account Credentials (JSON)")
 
 st.header("1. 匯入資料 (Upload Data)")
 col1, col2 = st.columns(2)
@@ -52,9 +52,11 @@ if 'inv_bytes' not in st.session_state:
 if st.button("利用 AI 辨識資料 (Extract Data)"):
     if not api_key:
         st.error("請先在左側欄位輸入 Gemini API Key 並按下確認！")
+    elif not pack_file and not price_file:
+         st.warning("請先上傳 PDF 檔案！")
     else:
-        with st.spinner("辨識 Pack 檔案中..."):
-            if pack_file:
+        if pack_file:
+            with st.spinner("辨識 Pack 檔案中..."):
                 try:
                     res = extract_pack_data(api_key, pack_file.read())
                     st.session_state.pack_data = res
@@ -62,14 +64,34 @@ if st.button("利用 AI 辨識資料 (Extract Data)"):
                 except Exception as e:
                     st.error(f"Pack 辨識失敗: {e}")
         
-        with st.spinner("辨識 Price 檔案中..."):
-            if price_file:
+        if price_file:
+            with st.spinner("辨識 Price 檔案中..."):
                 try:
                     res = extract_price_data(api_key, price_file.read())
                     st.session_state.price_data = res
                     st.success("Price 辨識成功！")
                 except Exception as e:
                     st.error(f"Price 辨識失敗: {e}")
+
+st.markdown("---")
+st.markdown("**(可選) 從 Google Sheet 載入之前已儲存的資料：**")
+col_load1, col_load2 = st.columns([3,1])
+with col_load1:
+    load_order = st.text_input("輸入想載入的 注文番號 (例如: USN 1031)", key="load_order")
+with col_load2:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("載入雲端資料"):
+        if not sheet_url or not google_creds:
+            st.error("請在左側設定 Google Sheet 網址與 JSON！")
+        else:
+            with st.spinner("載入中..."):
+                data = load_saved_data(google_creds, sheet_url, load_order)
+                if data:
+                    st.session_state.pack_data = data["pack"]
+                    st.session_state.price_data = data["price"]
+                    st.success("資料載入成功！請在下方預覽區確認。")
+                else:
+                    st.warning("找不到該番號的儲存資料。")
 
 st.header("2. 預覽與編輯資料 (Preview & Edit)")
 st.caption("您可以在下方表格直接修改辨識錯誤的數字，或新增/刪除行。")
@@ -86,8 +108,7 @@ edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor")
 
 st.header("3. 產生檔案 (Generate Files)")
 
-# Separate the Generate logic from the Download logic to prevent download buttons from disappearing.
-if st.button("生成 PDF 與更新總表"):
+if st.button("生成 PDF 與寫入總表"):
     if edited_pack.empty:
         st.error("沒有 Pack 資料，無法產生檔案。")
     elif not order_no:
@@ -105,7 +126,6 @@ if st.button("生成 PDF 與更新總表"):
                 generate_packing_list(pack_list, order_no, pl_path)
                 generate_invoice(pack_list, price_list, order_no, inv_path)
                 
-                # Save to session_state so they persist after re-run
                 with open(pl_path, "rb") as f:
                     st.session_state.pl_bytes = f.read()
                 with open(inv_path, "rb") as f:
@@ -118,8 +138,8 @@ if st.button("生成 PDF 與更新總表"):
                     try:
                         import datetime
                         date_str = datetime.date.today().strftime("%Y/%m/%d")
-                        update_google_sheet(google_creds, sheet_url, order_no, date_str, 0)
-                        st.success("成功登記至 Google Sheet！")
+                        update_google_sheet(google_creds, sheet_url, order_no, date_str, pack_list, price_list)
+                        st.success("成功更新至 Google Sheet 總表並儲存歸檔！備註欄已上連結！")
                     except Exception as ge:
                         st.error(f"寫入 Google Sheet 失敗（請確認您的 JSON 和網址是否正確）: {ge}")
                 else:
@@ -130,7 +150,6 @@ if st.button("生成 PDF 與更新總表"):
             except Exception as e:
                 st.error(f"產生過程中發生錯誤: {e}")
 
-# If we have generated PDFs in session state, always show them
 if st.session_state.pdf_generated and st.session_state.pl_bytes and st.session_state.inv_bytes:
     st.markdown("### 下載區 (Downloads)")
     st.download_button("📥 下載 Packing List PDF", st.session_state.pl_bytes, file_name=f"{order_no}_PackingList.pdf", mime="application/pdf")
