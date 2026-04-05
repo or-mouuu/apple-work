@@ -4,17 +4,32 @@ import json
 import os
 from extractor import extract_pack_data, extract_price_data
 from pdf_generator import generate_packing_list, generate_invoice
-from excel_updater import update_excel_master
+from google_sheets_updater import update_google_sheet
 
 st.set_page_config(page_title="Invoice & Packing List Generator", layout="wide")
 
 st.title("🍎 蘋果出貨 Invoice & Packing List 生成工具")
 
-st.sidebar.header("環境設定 / Settings")
+st.sidebar.header("⚙️ 環境設定 / Settings")
+
+if 'api_key_valid' not in st.session_state:
+    st.session_state.api_key_valid = False
+
 api_key = st.sidebar.text_input("輸入 Gemini API Key", type="password")
+if st.sidebar.button("確認 API Key"):
+    if api_key:
+        st.session_state.api_key_valid = True
+        st.sidebar.success("API Key 已確認！")
+    else:
+        st.session_state.api_key_valid = False
+        st.sidebar.error("請輸入 Key!")
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Google Sheet 設定")
+sheet_url = st.sidebar.text_input("總表 Google Sheet URL")
+google_creds = st.sidebar.text_area("Google Service Account Credentials (JSON)", help="貼上 Google 提供給您的 JSON 憑證")
 
 st.header("1. 匯入資料 (Upload Data)")
-
 col1, col2 = st.columns(2)
 with col1:
     pack_file = st.file_uploader("上傳 Pack-Sample (PDF 檔案)", type=["pdf"])
@@ -22,16 +37,21 @@ with col2:
     price_file = st.file_uploader("上傳 Price-Sample (PDF 檔案)", type=["pdf"])
     
 order_no = st.text_input("輸入 注文番號 (e.g., USN 1031)")
-excel_master = st.file_uploader("上傳 總表 Excel (可選)", type=["xlsx"])
 
 if 'pack_data' not in st.session_state:
     st.session_state.pack_data = []
 if 'price_data' not in st.session_state:
     st.session_state.price_data = []
+if 'pdf_generated' not in st.session_state:
+    st.session_state.pdf_generated = False
+if 'pl_bytes' not in st.session_state:
+    st.session_state.pl_bytes = None
+if 'inv_bytes' not in st.session_state:
+    st.session_state.inv_bytes = None
 
 if st.button("利用 AI 辨識資料 (Extract Data)"):
     if not api_key:
-        st.error("請先在左側輸入 Gemini API Key")
+        st.error("請先在左側欄位輸入 Gemini API Key 並按下確認！")
     else:
         with st.spinner("辨識 Pack 檔案中..."):
             if pack_file:
@@ -52,7 +72,7 @@ if st.button("利用 AI 辨識資料 (Extract Data)"):
                     st.error(f"Price 辨識失敗: {e}")
 
 st.header("2. 預覽與編輯資料 (Preview & Edit)")
-st.write("您可以在下方表格直接修改辨識錯誤的數字，或新增/刪除行")
+st.caption("您可以在下方表格直接修改辨識錯誤的數字，或新增/刪除行。")
 
 pack_df = pd.DataFrame(st.session_state.pack_data)
 if pack_df.empty:
@@ -65,9 +85,13 @@ if price_df.empty:
 edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor")
 
 st.header("3. 產生檔案 (Generate Files)")
+
+# Separate the Generate logic from the Download logic to prevent download buttons from disappearing.
 if st.button("生成 PDF 與更新總表"):
     if edited_pack.empty:
         st.error("沒有 Pack 資料，無法產生檔案。")
+    elif not order_no:
+        st.error("請輸入 注文番號！")
     else:
         with st.spinner("產生檔案中..."):
             try:
@@ -81,24 +105,33 @@ if st.button("生成 PDF 與更新總表"):
                 generate_packing_list(pack_list, order_no, pl_path)
                 generate_invoice(pack_list, price_list, order_no, inv_path)
                 
-                st.success("PDF 產生成功！")
-                
+                # Save to session_state so they persist after re-run
                 with open(pl_path, "rb") as f:
-                    st.download_button("下載 Packing List PDF", f, file_name="PackingList.pdf")
+                    st.session_state.pl_bytes = f.read()
                 with open(inv_path, "rb") as f:
-                    st.download_button("下載 Invoice PDF", f, file_name="Invoice.pdf")
+                    st.session_state.inv_bytes = f.read()
                 
-                # Excel Update Logic
-                if excel_master and order_no:
-                    excel_path = os.path.join("output", "master.xlsx")
-                    with open(excel_path, "wb") as f:
-                        f.write(excel_master.getbuffer())
+                st.session_state.pdf_generated = True
+                
+                # Google Sheets Update
+                if sheet_url and google_creds:
+                    try:
+                        import datetime
+                        date_str = datetime.date.today().strftime("%Y/%m/%d")
+                        update_google_sheet(google_creds, sheet_url, order_no, date_str, 0)
+                        st.success("成功登記至 Google Sheet！")
+                    except Exception as ge:
+                        st.error(f"寫入 Google Sheet 失敗（請確認您的 JSON 和網址是否正確）: {ge}")
+                else:
+                    st.warning("您沒有填寫 Google Sheet 資訊，跳過總表更新。")
                     
-                    import datetime
-                    date_str = datetime.date.today().strftime("%Y/%m/%d")
-                    update_excel_master(excel_path, order_no, date_str, 0)
-                    with open(excel_path, "rb") as f:
-                        st.download_button("下載更新後的總表 Excel", f, file_name=f"{order_no}_master.xlsx")
+                st.success("🎉 PDF 產生成功！請往下捲動下載檔案。")
                 
             except Exception as e:
                 st.error(f"產生過程中發生錯誤: {e}")
+
+# If we have generated PDFs in session state, always show them
+if st.session_state.pdf_generated and st.session_state.pl_bytes and st.session_state.inv_bytes:
+    st.markdown("### 下載區 (Downloads)")
+    st.download_button("📥 下載 Packing List PDF", st.session_state.pl_bytes, file_name=f"{order_no}_PackingList.pdf", mime="application/pdf")
+    st.download_button("📥 下載 Invoice PDF", st.session_state.inv_bytes, file_name=f"{order_no}_Invoice.pdf", mime="application/pdf")
