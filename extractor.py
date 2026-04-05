@@ -1,0 +1,82 @@
+import os
+import io
+import json
+from PIL import Image
+import pypdfium2 as pdfium
+from google import genai
+from google.genai import types
+
+def pdf_to_images(pdf_bytes):
+    pdf = pdfium.PdfDocument(pdf_bytes)
+    images = []
+    for i in range(len(pdf)):
+        page = pdf[i]
+        bitmap = page.render(scale=2)
+        images.append(bitmap.to_pil())
+    return images
+
+def extract_pack_data(api_key, pdf_bytes):
+    try:
+        images = pdf_to_images(pdf_bytes)
+        client = genai.Client(api_key=api_key)
+        
+        prompt = """
+        This is a shipping advice (pack-sample) tracking apple qualities and quantities.
+        The columns usually contain grades (等級, e.g. 勝, 赤特選, 黒特選) and variety (品名, e.g. シナノスイート, 名月).
+        The size columns are typically numbers like 20玉, 22玉, 24玉, etc.
+        Extract the table into a flat JSON list. Each object in the list should represent one size of one grade and variety.
+        You must ONLY return the raw JSON array. Do not wrap it in markdown. Do not include any other text.
+        Schema for each object:
+        {
+          "variety": "string",
+          "grade": "string",
+          "size": "string (just the number, e.g., '22')",
+          "quantity": "integer"
+        }
+        """
+        
+        # We assume the first page contains the data
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[images[0], prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        raise Exception(f"Failed to extract pack data: {str(e)}")
+
+def extract_price_data(api_key, pdf_bytes):
+    try:
+        images = pdf_to_images(pdf_bytes)
+        client = genai.Client(api_key=api_key)
+        
+        prompt = """
+        This is a handwritten price list (price-sample) tracking apple prices.
+        There are sections for different varieties (like USN-1031 Shinano Sweet vs others like 名月).
+        The columns are sizes (e.g. 32pup, 36p, 40p).
+        The rows are grades (e.g. 勝, 赤特選).
+        Extract this into a flat JSON list. Each object in the list should represent the price for one size of one grade for a variety.
+        If a size has 'up' or 'pup', just use that string.
+        You must ONLY return the raw JSON array. Do not wrap it in markdown. Do not include any other text.
+        Schema for each object:
+        {
+          "variety": "string",
+          "grade": "string",
+          "size": "string (e.g., '32', '28p', '28pup')",
+          "price": "integer"
+        }
+        """
+        
+        # We assume the first page contains the data
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[images[0], prompt],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            )
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        raise Exception(f"Failed to extract price data: {str(e)}")

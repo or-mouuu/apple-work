@@ -1,0 +1,7 @@
+streamlit
+google-genai
+pypdfium2
+reportlab
+openpyxl
+pandas
+Pillow
