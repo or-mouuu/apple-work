@@ -12,22 +12,26 @@ st.title("🍎 蘋果出貨 Invoice & Packing List 生成工具")
 
 st.sidebar.header("⚙️ 環境設定 / Settings")
 
-if 'api_key_valid' not in st.session_state:
-    st.session_state.api_key_valid = False
+st.sidebar.header("🔐 系統解鎖")
+app_password = st.sidebar.text_input("請輸入系統密碼", type="password")
 
-api_key = st.sidebar.text_input("輸入 Gemini API Key", type="password")
-if st.sidebar.button("確認 API Key"):
-    if api_key:
+if app_password == "unis5888":
+    st.sidebar.success("授權成功！環境變數已自動載入。")
+    try:
+        api_key = st.secrets["GEMINI_API_KEY"]
+        sheet_url = st.secrets["GOOGLE_SHEET_URL"]
+        google_creds = st.secrets["GOOGLE_CREDS_JSON"]
         st.session_state.api_key_valid = True
-        st.sidebar.success("API Key 已確認！")
-    else:
+    except Exception as e:
+        st.sidebar.error("⚠️ 尚未設定好 Streamlit Secrets，請到後台設定。")
+        api_key, sheet_url, google_creds = "", "", ""
         st.session_state.api_key_valid = False
-        st.sidebar.error("請輸入 Key!")
+else:
+    if app_password:
+        st.sidebar.error("密碼錯誤！")
+    st.info("👈 請先在左側輸入密碼以解鎖並使用工具。")
+    st.stop()
 
-st.sidebar.markdown("---")
-st.sidebar.subheader("Google Sheet 設定")
-sheet_url = st.sidebar.text_input("總表 Google Sheet URL")
-google_creds = st.sidebar.text_area("Google Service Account Credentials (JSON)")
 
 st.header("1. 匯入資料 (Upload Data)")
 col1, col2 = st.columns(2)
