@@ -94,8 +94,39 @@ with col_load2:
                     st.warning("找不到該番號的儲存資料。")
 
 st.header("2. 預覽與編輯資料 (Preview & Edit)")
-st.caption("您可以在下方表格直接修改辨識錯誤的數字，或新增/刪除行。")
+st.caption("您可以先利用「批量更正」功能把同一個錯字統一替換，或是直接在下方表格做個別修改與新增/刪除行。")
 
+with st.expander("🛠️ 批量更正 品種 (Variety) 與 等級 (Grade) 名稱", expanded=False):
+    all_vars = sorted(list(set([i.get('variety','') for i in st.session_state.pack_data] + [i.get('variety','') for i in st.session_state.price_data])))
+    all_grades = sorted(list(set([i.get('grade','') for i in st.session_state.pack_data] + [i.get('grade','') for i in st.session_state.price_data])))
+    
+    colA, colB = st.columns(2)
+    with colA:
+        st.write("🍏 品種 (Variety) 更正")
+        var_df = pd.DataFrame([{"目前名稱": v, "更正為": v} for v in all_vars if str(v).strip() != ""])
+        new_vars = st.data_editor(var_df, use_container_width=True, hide_index=True) if not var_df.empty else pd.DataFrame()
+        
+    with colB:
+        st.write("🏅 等級 (Grade) 更正")
+        grade_df = pd.DataFrame([{"目前名稱": g, "更正為": g} for g in all_grades if str(g).strip() != ""])
+        new_grades = st.data_editor(grade_df, use_container_width=True, hide_index=True) if not grade_df.empty else pd.DataFrame()
+
+    if st.button("執行批量更正 (Apply Bulk Rename)"):
+        var_map = {row["目前名稱"]: row["更正為"] for _, row in new_vars.iterrows()} if not new_vars.empty else {}
+        grade_map = {row["目前名稱"]: row["更正為"] for _, row in new_grades.iterrows()} if not new_grades.empty else {}
+        
+        for item in st.session_state.pack_data:
+            if item.get("variety") in var_map: item["variety"] = var_map[item["variety"]]
+            if item.get("grade") in grade_map: item["grade"] = grade_map[item["grade"]]
+        
+        for item in st.session_state.price_data:
+            if item.get("variety") in var_map: item["variety"] = var_map[item["variety"]]
+            if item.get("grade") in grade_map: item["grade"] = grade_map[item["grade"]]
+            
+        st.success("批量更正成功！下方表格已更新。")
+        st.rerun()
+
+st.markdown("---")
 pack_df = pd.DataFrame(st.session_state.pack_data)
 if pack_df.empty:
     pack_df = pd.DataFrame(columns=["variety", "grade", "size", "quantity"])
@@ -105,6 +136,7 @@ price_df = pd.DataFrame(st.session_state.price_data)
 if price_df.empty:
     price_df = pd.DataFrame(columns=["variety", "grade", "size", "price"])
 edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor")
+
 
 st.header("3. 產生檔案 (Generate Files)")
 
