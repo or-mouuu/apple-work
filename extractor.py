@@ -27,10 +27,13 @@ def extract_pack_data(api_key, pdf_bytes):
         
         CRITICAL TABLE ALIGNMENT TASK:
         Because handwriting and tables can be hard to read, you must first do a step-by-step reasoning in the "row_reasoning" field.
-        1. Identify the header sizes (e.g., 20, 22, 24, 26, 28, 32, 36).
-        2. For every single row (grade/variety), explicitly trace each column from left to right. Write down whether there is a quantity or if it is blank.
-        For example: "勝特選: 20=blank, 22=10, 24=15..." and "赤特選: 20=5, 22=8...".
-        3. Only after tracing all columns, put the final non-empty size/quantities into the "extracted_data" list.
+        1. Identify the exact header sizes (e.g., 20, 22, 24, 26, 28, 32, 36).
+        2. Pay intense attention to the VERTICAL alignment of numbers under these headers.
+        3. Do NOT mix up rows. A number explicitly written on the '赤特選' line MUST NOT be assigned to the '勝特選' line above it. Read STRICTLY horizontally.
+        4. For every single row (grade/variety), explicitly trace each column from left to right.
+        For example: "勝特選: 20=blank, 22=blank, 24=15..." and "赤特選: 20=5, 22=8, 24=blank...".
+        If a size column is blank on that specific physical line, you MUST write blank. Do not shift numbers to fill blanks!
+        5. Only after tracing all columns, put the final non-empty size/quantities into the "extracted_data" list.
 
         You must ONLY return a valid JSON object with the following schema:
         {
