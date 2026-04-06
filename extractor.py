@@ -24,6 +24,14 @@ def extract_pack_data(api_key, pdf_bytes):
         This is a shipping advice (pack-sample) tracking apple qualities and quantities.
         The columns usually contain grades (等級, e.g. 勝, 赤特選, 黒特選) and variety (品名, e.g. シナノスイート, 名月).
         The size columns are typically numbers like 20玉, 22玉, 24玉, etc.
+        
+        CRITICAL INSTRUCTION FOR TABLE ALIGNMENT: 
+        Pay EXTREMELY close attention to the alignment of numbers in the table. 
+        Some rows/grades do NOT have quantities for certain sizes (e.g. they might start at 22 or have blank cells). 
+        You MUST NOT shift the numbers horizontally. DO NOT assume the first number in a row corresponds to the first size column (e.g., 20).
+        ONLY extract a quantity if there is a number explicitly written in the column corresponding to that specific size.
+        If a cell is blank or empty under a size column, DO NOT extract any object for it.
+
         Extract the table into a flat JSON list. Each object in the list should represent one size of one grade and variety.
         You must ONLY return the raw JSON array. Do not wrap it in markdown. Do not include any other text.
         Schema for each object:
