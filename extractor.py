@@ -25,21 +25,26 @@ def extract_pack_data(api_key, pdf_bytes):
         The columns usually contain grades (等級, e.g. 勝, 赤特選, 黒特選) and variety (品名, e.g. シナノスイート, 名月).
         The size columns are typically numbers like 20玉, 22玉, 24玉, etc.
         
-        CRITICAL INSTRUCTION FOR TABLE ALIGNMENT: 
-        Pay EXTREMELY close attention to the alignment of numbers in the table. 
-        Some rows/grades do NOT have quantities for certain sizes (e.g. they might start at 22 or have blank cells). 
-        You MUST NOT shift the numbers horizontally. DO NOT assume the first number in a row corresponds to the first size column (e.g., 20).
-        ONLY extract a quantity if there is a number explicitly written in the column corresponding to that specific size.
-        If a cell is blank or empty under a size column, DO NOT extract any object for it.
+        CRITICAL TABLE ALIGNMENT TASK:
+        Because handwriting and tables can be hard to read, you must first do a step-by-step reasoning in the "row_reasoning" field.
+        1. Identify the header sizes (e.g., 20, 22, 24, 26, 28, 32, 36).
+        2. For every single row (grade/variety), explicitly trace each column from left to right. Write down whether there is a quantity or if it is blank.
+        For example: "勝特選: 20=blank, 22=10, 24=15..." and "赤特選: 20=5, 22=8...".
+        3. Only after tracing all columns, put the final non-empty size/quantities into the "extracted_data" list.
 
-        Extract the table into a flat JSON list. Each object in the list should represent one size of one grade and variety.
-        You must ONLY return the raw JSON array. Do not wrap it in markdown. Do not include any other text.
-        Schema for each object:
+        You must ONLY return a valid JSON object with the following schema:
         {
-          "variety": "string",
-          "grade": "string",
-          "size": "string (just the number, e.g., '22')",
-          "quantity": "integer"
+          "row_reasoning": [
+            "string detailing the sizes found in each row"
+          ],
+          "extracted_data": [
+            {
+              "variety": "string",
+              "grade": "string",
+              "size": "string (just the number, e.g., '22')",
+              "quantity": "integer"
+            }
+          ]
         }
         """
         
@@ -51,7 +56,8 @@ def extract_pack_data(api_key, pdf_bytes):
                 response_mime_type="application/json",
             )
         )
-        return json.loads(response.text)
+        data = json.loads(response.text)
+        return data.get("extracted_data", [])
     except Exception as e:
         raise Exception(f"Failed to extract pack data: {str(e)}")
 
