@@ -69,7 +69,7 @@ if st.button("利用 AI 自動辨識資料"):
         if price_file:
             with st.spinner("辨識價格紀錄中..."):
                 try:
-                    res = extract_price_data(api_key, price_file.read())
+                    res = extract_price_data(api_key, price_file.read(), st.session_state.pack_data)
                     st.session_state.price_data = res
                     st.success("價格紀錄辨識成功！")
                 except Exception as e:

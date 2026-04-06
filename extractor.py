@@ -47,13 +47,27 @@ def extract_pack_data(api_key, pdf_bytes):
     except Exception as e:
         raise Exception(f"Failed to extract pack data: {str(e)}")
 
-def extract_price_data(api_key, pdf_bytes):
+def extract_price_data(api_key, pdf_bytes, pack_data=None):
     try:
         images = pdf_to_images(pdf_bytes)
         client = genai.Client(api_key=api_key)
         
-        prompt = """
+        reference_notes = ""
+        if pack_data:
+            varieties = list(set([item.get('variety') for item in pack_data if item.get('variety')]))
+            grades = list(set([item.get('grade') for item in pack_data if item.get('grade')]))
+            reference_notes = f"""
+        CRITICAL INSTRUCTION FOR HANDWRITING: 
+        Because handwriting can be messy, please use the following lists of varieties and grades (extracted from the weight record) to match and correct the handwritten item names in the price record. Pick the closest match from these lists for "variety" and "grade" if possible:
+        Expected Varieties: {varieties}
+        Expected Grades: {grades}
+        """
+
+        prompt = f"""
         This is a handwritten price list (price-sample) tracking apple prices.
+        CRITICAL INSTRUCTION: There are typically two tables on the page. The top one usually contains your purchase prices, and the BOTTOM one is the CNF table with actual selling prices.
+        You MUST ONLY extract prices from the BOTTOM (CNF) table. Ignore the top table completely.
+        {reference_notes}
         There are sections for different varieties (like USN-1031 Shinano Sweet vs others like 名月).
         The columns are sizes (e.g. 32pup, 36p, 40p).
         The rows are grades (e.g. 勝, 赤特選).
@@ -61,12 +75,12 @@ def extract_price_data(api_key, pdf_bytes):
         If a size has 'up' or 'pup', just use that string.
         You must ONLY return the raw JSON array. Do not wrap it in markdown. Do not include any other text.
         Schema for each object:
-        {
+        {{
           "variety": "string",
           "grade": "string",
           "size": "string (e.g., '32', '28p', '28pup')",
           "price": "integer"
-        }
+        }}
         """
         
         # We assume the first page contains the data
