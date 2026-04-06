@@ -144,6 +144,8 @@ edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor")
 st.markdown("---")
 st.header("第三步：產生最終檔案與寫入總表")
 
+case_weight = st.number_input("設定每櫃淨重 (Net Weight / Case), 預設 11kg", value=11.0, step=0.1)
+
 if st.button("生成 PDF 檔案並更新總表"):
     if edited_pack.empty:
         st.error("沒有重量紀錄資料，無法產生檔案。")
@@ -159,7 +161,7 @@ if st.button("生成 PDF 檔案並更新總表"):
                 pl_path = os.path.join("output", "PackingList_Output.pdf")
                 inv_path = os.path.join("output", "Invoice_Output.pdf")
                 
-                generate_packing_list(pack_list, order_no, pl_path)
+                generate_packing_list(pack_list, order_no, case_weight, pl_path)
                 generate_invoice(pack_list, price_list, order_no, inv_path)
                 
                 with open(pl_path, "rb") as f:

@@ -41,7 +41,7 @@ def get_price(var, grade, size, price_data):
             
     return 0
 
-def generate_packing_list(data, order_no, output_path):
+def generate_packing_list(data, order_no, case_weight, output_path):
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     cjk_font = register_font()
@@ -84,8 +84,8 @@ def generate_packing_list(data, order_no, output_path):
         combo = f"{var} {grade}".strip()
         size = str(item.get('size', ''))
         qty = int(item.get('quantity', 0))
-        net = qty * 11.5
-        gross = qty * 13.0
+        net = qty * case_weight
+        gross = qty * (case_weight + 1.0)
         
         if combo != last_combo:
             c.setDash(1, 2)
