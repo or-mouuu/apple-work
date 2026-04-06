@@ -35,10 +35,10 @@ def extract_pack_data(api_key, pdf_bytes):
         }
         """
         
-        # We assume the first page contains the data
+        # Pass all pages to the model
         response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=[images[0], prompt],
+            contents=[*images, prompt],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
             )
@@ -83,10 +83,10 @@ def extract_price_data(api_key, pdf_bytes, pack_data=None):
         }}
         """
         
-        # We assume the first page contains the data
+        # Pass all pages to the model
         response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=[images[0], prompt],
+            contents=[*images, prompt],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
             )

@@ -5,6 +5,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import datetime
 import os
+import re
 
 font_path = "NotoSansTC-Regular.ttf"
 
@@ -108,6 +109,104 @@ def generate_packing_list(data, order_no, output_path):
     c.save()
     return output_path
 
+def preprocess_invoice_data(data, price_data):
+    def find_best_rule(var, grade, size, price_list):
+        n_grade = normalize(grade)
+        n_var = normalize(var)
+        n_size = normalize(size)
+        
+        matched_prices = []
+        for p in price_list:
+            p_grade = normalize(p.get('grade', ''))
+            if p_grade and p_grade in (n_var + n_grade):
+                matched_prices.append(p)
+                
+        for p in matched_prices:
+            p_size = normalize(p.get('size', ''))
+            if p_size == n_size:
+                return p, "exact"
+                
+        try:
+            m = re.search(r'\d+', str(size))
+            s_val = int(m.group()) if m else -1
+        except:
+            s_val = -1
+            
+        best_pup_rule = None
+        best_max = 9999
+        
+        for p in matched_prices:
+            raw_s = str(p.get('size', '')).lower()
+            if 'up' in raw_s:
+                try:
+                    m = re.search(r'\d+', raw_s)
+                    if m:
+                        p_val = int(m.group())
+                        if s_val != -1 and s_val <= p_val:
+                            if p_val < best_max:
+                                best_max = p_val
+                                best_pup_rule = p
+                except:
+                    pass
+        if best_pup_rule:
+            return best_pup_rule, "pup"
+            
+        return None, "none"
+
+    grouped = {}
+    for item in data:
+        var = str(item.get('variety', '')).strip()
+        grade = str(item.get('grade', '')).strip()
+        size = str(item.get('size', ''))
+        qty = int(item.get('quantity', 0))
+        
+        rule, rule_type = find_best_rule(var, grade, size, price_data)
+        
+        if rule and rule_type == "pup":
+            rule_size = str(rule.get('size', ''))
+            key = (var, grade, f"pup_group_{rule_size}")
+            if key not in grouped:
+                grouped[key] = {
+                    'variety': var, 'grade': grade, 
+                    'sizes_in_group': [], 'quantity': 0, 'price': int(rule.get('price', 0)), 'is_pup': True
+                }
+            m = re.search(r'\d+', size)
+            if m:
+                grouped[key]['sizes_in_group'].append(int(m.group()))
+            grouped[key]['quantity'] += qty
+        else:
+            key = (var, grade, f"exact_{size}")
+            if key not in grouped:
+                price_val = int(rule.get('price', 0)) if rule else get_price(var, grade, size, price_data)
+                grouped[key] = {
+                    'variety': var, 'grade': grade, 'size_display': f"{size} p",
+                    'quantity': 0, 'price': price_val, 'is_pup': False
+                }
+            grouped[key]['quantity'] += qty
+
+    result = []
+    for k, v in grouped.items():
+        if v.get('is_pup'):
+            sizes = sorted(v['sizes_in_group'])
+            if sizes:
+                min_s = sizes[0]
+                max_s = sizes[-1]
+                if min_s == max_s:
+                    v['size_display'] = f"{min_s} p"
+                else:
+                    v['size_display'] = f"{min_s}p～{max_s}p"
+            else:
+                v['size_display'] = "pup"
+        
+        result.append({
+            'variety': v['variety'],
+            'grade': v['grade'],
+            'size': v['size_display'],
+            'quantity': v['quantity'],
+            '_price': v['price']
+        })
+    return result
+
 def generate_invoice(data, price_data, order_no, output_path):
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
@@ -141,10 +240,11 @@ def generate_invoice(data, price_data, order_no, output_path):
     total_qty = 0
     total_amt = 0
     
-    data = sorted(data, key=lambda x: (str(x.get('variety', '')), str(x.get('grade', ''))))
+    processed_data = preprocess_invoice_data(data, price_data)
+    processed_data = sorted(processed_data, key=lambda x: (str(x.get('variety', '')), str(x.get('grade', ''))))
     last_combo = None
     
-    for item in data:
+    for item in processed_data:
         if y < 2*cm:
             c.showPage()
             c.setFont("Times-Roman", 10)
@@ -153,10 +253,10 @@ def generate_invoice(data, price_data, order_no, output_path):
         var = str(item.get('variety', '')).strip()
         grade = str(item.get('grade', '')).strip()
         combo = f"{var} {grade}".strip()
-        size = str(item.get('size', ''))
+        display_size = str(item.get('size', ''))
         qty = int(item.get('quantity', 0))
         
-        p_val = get_price(var, grade, size, price_data)
+        p_val = item.get('_price', 0)
         amt = qty * p_val
         total_qty += qty
         total_amt += amt
@@ -171,7 +271,7 @@ def generate_invoice(data, price_data, order_no, output_path):
             last_combo = combo
             
         c.setFont("Times-Roman", 10)
-        c.drawCentredString(10*cm, y, f"{size} p")
+        c.drawCentredString(10*cm, y, display_size)
         c.drawCentredString(13*cm, y, f"{qty} cs")
         c.drawCentredString(15.5*cm, y, f"¥{p_val:,.0f}")
         c.drawRightString(19*cm, y, f"¥{amt:,.0f}")
