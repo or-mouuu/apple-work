@@ -269,7 +269,12 @@ with st.expander("展開編輯封面資訊 (預設為截圖中的文字)", expan
         brand = st.text_input("BRAND", "SHICHIFUKUJIN", key="brand")
         pallet_count = st.text_input("PALLET (數量)", "21", key="pallet_count")
         
-    # pallet_weight_total moved out
+col_w1, col_w2 = st.columns(2)
+with col_w1:
+    case_weight = st.number_input("設定每櫃淨重 (Net Weight / Case), 預設 11kg", value=11.0, step=0.1)
+with col_w2:
+    pallet_weight_total = st.number_input("Other packaging materials (pallet etc.) KG", value=189.0, step=1.0)
+
 cover_info = {
     "shipper_name": shipper_name,
     "shipper_addr1": shipper_addr1,
@@ -293,12 +298,6 @@ cover_info = {
     "pallet": pallet_count,
     "pallet_weight": pallet_weight_total
 }
-
-col_w1, col_w2 = st.columns(2)
-with col_w1:
-    case_weight = st.number_input("設定每櫃淨重 (Net Weight / Case), 預設 11kg", value=11.0, step=0.1)
-with col_w2:
-    pallet_weight_total = st.number_input("Other packaging materials (pallet etc.) KG", value=189.0, step=1.0)
 
 exclude_zero = st.checkbox("在產生 Invoice 時自動排除缺少價格 (¥0) 的品項", value=True)
 
