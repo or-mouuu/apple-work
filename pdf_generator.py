@@ -73,21 +73,19 @@ def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
     x1, x_mid, x_mid2, x2 = 1.5*cm, 10.5*cm, 15*cm, width - 1.5*cm
     y0 = height - 3*cm
     y1 = y0 - 3*cm
-    y2 = y1 - 3*cm
+    y2 = y1 - 3.5*cm
     y3 = y2 - 3.5*cm
     
-    c.line(x1, y1, x_mid, y1)
-    c.line(x1, y2, x_mid, y2)
+    # Horizontal lines across the whole table
+    c.line(x1, y1, x2, y1)
+    c.line(x1, y2, x2, y2)
     
-    y_ref_bottom = y0 - 1.5*cm
-    y_booking_bottom = y_ref_bottom - 1.5*cm
-    y_shipped_bottom = y_booking_bottom - 2.5*cm
-    y_remarks_bottom = y2
+    # Right column specific horizontal lines
+    y_ref_bottom = y0 - 1*cm
+    y_booking_bottom = y0 - 2*cm
     
     c.line(x_mid, y_ref_bottom, x2, y_ref_bottom)
     c.line(x_mid, y_booking_bottom, x2, y_booking_bottom)
-    c.line(x_mid, y_shipped_bottom, x2, y_shipped_bottom)
-    c.line(x_mid, y_remarks_bottom, x2, y_remarks_bottom)
     
     c.rect(x1, y3, x2 - x1, y0 - y3)
     c.line(x_mid, y3, x_mid, y0)
@@ -110,27 +108,27 @@ def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
     c.drawString(x1 + 0.1*cm, y2 - 0.4*cm, "NOTIFY PATY:")
     
     c.drawString(x_mid + 0.1*cm, y0 - 0.4*cm, "REF.NO.")
-    c.drawCentredString((x_mid + x_mid2)/2, y0 - 1.0*cm, cover_info.get("order_no", ""))
+    c.drawCentredString((x_mid + x_mid2)/2, y0 - 0.8*cm, cover_info.get("order_no", ""))
     c.drawString(x_mid2 + 0.1*cm, y0 - 0.4*cm, "DATE")
-    c.drawRightString(x2 - 0.2*cm, y0 - 1.0*cm, cover_info.get("date", ""))
+    c.drawRightString(x2 - 0.2*cm, y0 - 0.8*cm, cover_info.get("date", ""))
     
     c.drawString(x_mid + 0.1*cm, y_ref_bottom - 0.4*cm, "BOOKING AGNET")
-    c.drawCentredString((x_mid + x_mid2)/2, y_ref_bottom - 1.0*cm, cover_info.get("booking_agent", ""))
+    c.drawCentredString((x_mid + x_mid2)/2, y_ref_bottom - 0.8*cm, cover_info.get("booking_agent", ""))
     c.drawString(x_mid2 + 0.1*cm, y_ref_bottom - 0.4*cm, "BOOKING NO.")
-    c.drawRightString(x2 - 0.2*cm, y_ref_bottom - 1.0*cm, cover_info.get("booking_no", ""))
+    c.drawRightString(x2 - 0.2*cm, y_ref_bottom - 0.8*cm, cover_info.get("booking_no", ""))
     
     c.drawString(x_mid + 0.1*cm, y_booking_bottom - 0.4*cm, "SHIPPED PER MV")
-    c.drawCentredString(x_mid + 2.5*cm, y_booking_bottom - 0.9*cm, cover_info.get("shipped_per", ""))
-    c.drawString(x_mid + 0.5*cm, y_booking_bottom - 1.4*cm, "FROM: " + cover_info.get("from_port", ""))
-    c.drawString(x_mid2 + 0.5*cm, y_booking_bottom - 1.4*cm, "TO: " + cover_info.get("to_port", ""))
-    c.drawString(x_mid + 0.1*cm, y_booking_bottom - 1.9*cm, "ON OR ABOUT")
-    c.drawCentredString(x_mid + 2.5*cm, y_booking_bottom - 2.3*cm, cover_info.get("on_or_about", ""))
+    c.drawCentredString(x_mid + 3.5*cm, y_booking_bottom - 0.4*cm, cover_info.get("shipped_per", ""))
+    c.drawString(x_mid + 0.5*cm, y_booking_bottom - 0.9*cm, "FROM: " + cover_info.get("from_port", ""))
+    c.drawString(x_mid2 + 0.5*cm, y_booking_bottom - 0.9*cm, "TO: " + cover_info.get("to_port", ""))
+    c.drawString(x_mid + 0.1*cm, y1 + 0.4*cm, "ON OR ABOUT")
+    c.drawCentredString(x_mid + 3.5*cm, y1 + 0.1*cm, cover_info.get("on_or_about", ""))
     
-    c.drawString(x_mid + 0.1*cm, y_shipped_bottom - 0.4*cm, "REMARKS:")
-    c.drawString(x_mid + 1*cm, y_shipped_bottom - 0.9*cm, "ORIGIN: " + cover_info.get("origin", ""))
-    c.drawString(x_mid + 1*cm, y_shipped_bottom - 1.4*cm, "BRAND: " + cover_info.get("brand", ""))
-    c.drawString(x_mid2 + 1*cm, y_shipped_bottom - 1.4*cm, "ICE BOX")
-    c.drawString(x_mid + 1*cm, y_shipped_bottom - 1.9*cm, "PALLET: " + str(cover_info.get("pallet", "")))
+    c.drawString(x_mid + 0.1*cm, y1 - 0.4*cm, "REMARKS:")
+    c.drawString(x_mid + 1*cm, y1 - 0.9*cm, "ORIGIN: " + cover_info.get("origin", ""))
+    c.drawString(x_mid + 1*cm, y1 - 1.4*cm, "BRAND: " + cover_info.get("brand", ""))
+    c.drawString(x_mid2 + 1*cm, y1 - 1.4*cm, "ICE BOX")
+    c.drawString(x_mid + 1*cm, y1 - 1.9*cm, "PALLET: " + str(cover_info.get("pallet", "")))
     
     c.drawString(x_mid + 0.1*cm, y2 - 0.4*cm, "ALSO NOTIFY:")
     
@@ -166,7 +164,7 @@ def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
         c.line(x1 + 12*cm, y_tbl - 1.4*cm, x2, y_tbl - 1.4*cm)
         c.setFont("Times-Roman", 10)
         
-    c.drawCentredString(x1 + 7*cm, y_tbl - 7*cm, "As per attacment")
+    c.drawCentredString(x1 + 7*cm, y_tbl - 7*cm, "As per attachment")
     
     y_tot = 5*cm
     c.line(x1, y_tot, x2, y_tot)
