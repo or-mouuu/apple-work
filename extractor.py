@@ -27,13 +27,18 @@ def extract_pack_data(api_key, pdf_bytes):
         
         CRITICAL TABLE ALIGNMENT TASK:
         Because handwriting and tables can be hard to read, you must first do a step-by-step reasoning in the "row_reasoning" field.
-        1. Identify the exact header sizes. COUNT exactly how many size columns there are and carefully list them all (e.g., 20, 22, 24, 26, 28, 32, 36, 40, 46).
+        1. Identify the exact header sizes. COUNT exactly how many size columns there are and carefully list them all in order (e.g., 20, 22, 24, 26, 28, 32, 36, 40, 46, 50, 56).
         2. Pay intense attention to the VERTICAL alignment of numbers under these headers.
-        3. Do NOT mix up rows. A number explicitly written on the '赤特選' line MUST NOT be assigned to the '勝特選' line above it. Read STRICTLY horizontally.
-        4. For every single row (grade/variety), explicitly trace each column from left to right.
-        For example: "勝特選: 20=blank, 22=blank, 24=15..." and "赤特選: 20=5, 22=8, 24=blank...".
-        If a size column is blank on that specific physical line, you MUST write blank. Do not shift numbers to fill blanks! CAREFULLY MAP the last few columns, do not skip '36' and misassign it to '40'.
-        5. Only after tracing all columns, put the final non-empty size/quantities into the "extracted_data" list.
+        3. Do NOT mix up rows. Read STRICTLY horizontally between the horizontal grid lines.
+        4. For EVERY single row, explicitly trace each column from left to right, STARTING FROM THE VERY FIRST SIZE COLUMN (e.g., 20).
+        You MUST list out every single size header for every row, even if it is empty. 
+        For example, if headers are 20, 22, 24, 26:
+        "Row 1: 20=blank, 22=1, 24=1, 26=2..."
+        "Row 2: 20=2, 22=4, 24=9, 26=26..."
+        DO NOT skip the first column (e.g., 20) in your reasoning, especially if previous rows had it blank.
+        5. A common error is shifting numbers left or right when some columns are blank. Check the vertical grid lines carefully.
+        6. On the far right of the table, there is an "出荷数" (Total Quantity) column. Trace it for each row.
+        7. Only after tracing all columns, put the final non-empty size/quantities into the "extracted_data" list, and the row total into the "row_totals" list.
 
         You must ONLY return a valid JSON object with the following schema:
         {
@@ -46,6 +51,13 @@ def extract_pack_data(api_key, pdf_bytes):
               "grade": "string",
               "size": "string (just the number, e.g., '22')",
               "quantity": "integer"
+            }
+          ],
+          "row_totals": [
+            {
+              "variety": "string",
+              "grade": "string",
+              "expected_total": "integer (from the 出荷数 column)"
             }
           ]
         }
@@ -60,7 +72,10 @@ def extract_pack_data(api_key, pdf_bytes):
             )
         )
         data = json.loads(response.text)
-        return data.get("extracted_data", [])
+        return {
+            "pack_data": data.get("extracted_data", []),
+            "row_totals": data.get("row_totals", [])
+        }
     except Exception as e:
         raise Exception(f"Failed to extract pack data: {str(e)}")
 

@@ -42,6 +42,8 @@ order_no = st.text_input("輸入 注文番號 (例如: USN 1031)")
 
 if 'pack_data' not in st.session_state:
     st.session_state.pack_data = []
+if 'row_totals' not in st.session_state:
+    st.session_state.row_totals = []
 if 'price_data' not in st.session_state:
     st.session_state.price_data = []
 if 'pdf_generated' not in st.session_state:
@@ -61,7 +63,8 @@ if st.button("利用 AI 自動辨識資料"):
             with st.spinner("辨識重量紀錄中..."):
                 try:
                     res = extract_pack_data(api_key, pack_file.read())
-                    st.session_state.pack_data = res
+                    st.session_state.pack_data = res.get("pack_data", [])
+                    st.session_state.row_totals = res.get("row_totals", [])
                     st.success("重量紀錄辨識成功！")
                 except Exception as e:
                     st.error(f"辨識失敗: {e}")
@@ -135,6 +138,28 @@ pack_df = pd.DataFrame(st.session_state.pack_data)
 if pack_df.empty:
     pack_df = pd.DataFrame(columns=["variety", "grade", "size", "quantity"])
 edited_pack = st.data_editor(pack_df, num_rows="dynamic", key="pack_editor")
+
+if st.session_state.get('row_totals'):
+    st.markdown("### 🔍 出荷數加總驗證")
+    st.caption("驗證您目前表格中的加總與掃描圖上的出荷數是否一致。")
+    
+    temp_pack = edited_pack.copy()
+    temp_pack['quantity'] = pd.to_numeric(temp_pack['quantity'], errors='coerce').fillna(0)
+    calc_df = temp_pack.groupby(['variety', 'grade'])['quantity'].sum().reset_index()
+    totals_df = pd.DataFrame(st.session_state.row_totals)
+    
+    if not totals_df.empty:
+        merged_df = pd.merge(calc_df, totals_df, on=['variety', 'grade'], how='outer')
+        merged_df.rename(columns={'quantity': '表格加總 (Quantity)', 'expected_total': '原始出荷數 (Expected)'}, inplace=True)
+        merged_df['表格加總 (Quantity)'] = merged_df['表格加總 (Quantity)'].fillna(0).astype(int)
+        merged_df['原始出荷數 (Expected)'] = merged_df['原始出荷數 (Expected)'].fillna(0).astype(int)
+        
+        def highlight_diff(row):
+            if row['表格加總 (Quantity)'] != row['原始出荷數 (Expected)']:
+                return ['background-color: #ffcccc'] * len(row)
+            return ['background-color: #ccffcc'] * len(row)
+            
+        st.dataframe(merged_df.style.apply(highlight_diff, axis=1), use_container_width=True)
 
 price_df = pd.DataFrame(st.session_state.price_data)
 if price_df.empty:
