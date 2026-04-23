@@ -67,7 +67,7 @@ def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
     else:
         c.drawCentredString(width/2.0, height - 2.5*cm, "I N V O I C E")
         
-    c.setFont("Times-Roman", 10)
+    c.setFont(cjk_font, 10)
     c.setLineWidth(1)
     
     x1, x_mid, x_mid2, x2 = 1.5*cm, 10.5*cm, 15*cm, width - 1.5*cm
@@ -269,7 +269,7 @@ def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
         c.setDash()
         
         if var != last_variety:
-            c.setFont("Times-Roman", 10)
+            c.setFont(cjk_font, 10)
             c.drawString(2.5*cm, y, var)
             
         if is_new_group:
@@ -475,7 +475,7 @@ def generate_invoice(data, price_data, order_no, cover_info, output_path, exclud
         c.setDash()
         
         if var != last_variety:
-            c.setFont("Times-Roman", 10)
+            c.setFont(cjk_font, 10)
             c.drawString(2.5*cm, y, var)
             
         if is_new_group:
