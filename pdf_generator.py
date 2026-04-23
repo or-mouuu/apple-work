@@ -72,7 +72,7 @@ def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
     
     x1, x_mid, x_mid2, x2 = 1.5*cm, 10.5*cm, 15*cm, width - 1.5*cm
     y0 = height - 3*cm
-    y1 = y0 - 3*cm
+    y1 = y0 - 4.0*cm
     y2 = y1 - 3.5*cm
     y3 = y2 - 3.5*cm
     
@@ -105,24 +105,24 @@ def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
     c.drawString(x1 + 1.5*cm, y1 - 2.0*cm, "TEL: " + cover_info.get("consignee_tel", ""))
     c.drawString(x1 + 1.5*cm, y1 - 2.4*cm, "FAX: " + cover_info.get("consignee_fax", ""))
     
-    c.drawString(x1 + 0.1*cm, y2 - 0.4*cm, "NOTIFY PATY:")
+    c.drawString(x1 + 0.1*cm, y2 - 0.4*cm, "NOTIFY PARTY:")
     
     c.drawString(x_mid + 0.1*cm, y0 - 0.4*cm, "REF.NO.")
     c.drawCentredString((x_mid + x_mid2)/2, y0 - 0.8*cm, cover_info.get("order_no", ""))
     c.drawString(x_mid2 + 0.1*cm, y0 - 0.4*cm, "DATE")
     c.drawRightString(x2 - 0.2*cm, y0 - 0.8*cm, cover_info.get("date", ""))
     
-    c.drawString(x_mid + 0.1*cm, y_ref_bottom - 0.4*cm, "BOOKING AGNET")
+    c.drawString(x_mid + 0.1*cm, y_ref_bottom - 0.4*cm, "BOOKING AGENT")
     c.drawCentredString((x_mid + x_mid2)/2, y_ref_bottom - 0.8*cm, cover_info.get("booking_agent", ""))
     c.drawString(x_mid2 + 0.1*cm, y_ref_bottom - 0.4*cm, "BOOKING NO.")
     c.drawRightString(x2 - 0.2*cm, y_ref_bottom - 0.8*cm, cover_info.get("booking_no", ""))
     
     c.drawString(x_mid + 0.1*cm, y_booking_bottom - 0.4*cm, "SHIPPED PER MV")
-    c.drawCentredString(x_mid + 3.5*cm, y_booking_bottom - 0.4*cm, cover_info.get("shipped_per", ""))
-    c.drawString(x_mid + 0.5*cm, y_booking_bottom - 0.9*cm, "FROM: " + cover_info.get("from_port", ""))
-    c.drawString(x_mid2 + 0.5*cm, y_booking_bottom - 0.9*cm, "TO: " + cover_info.get("to_port", ""))
-    c.drawString(x_mid + 0.1*cm, y1 + 0.4*cm, "ON OR ABOUT")
-    c.drawCentredString(x_mid + 3.5*cm, y1 + 0.1*cm, cover_info.get("on_or_about", ""))
+    c.drawCentredString(x_mid + 3.5*cm, y_booking_bottom - 0.8*cm, cover_info.get("shipped_per", ""))
+    c.drawString(x_mid + 0.5*cm, y_booking_bottom - 1.2*cm, "FROM: " + cover_info.get("from_port", ""))
+    c.drawString(x_mid2 + 0.5*cm, y_booking_bottom - 1.2*cm, "TO: " + cover_info.get("to_port", ""))
+    c.drawString(x_mid + 0.1*cm, y_booking_bottom - 1.6*cm, "ON OR ABOUT")
+    c.drawCentredString(x_mid + 3.5*cm, y_booking_bottom - 1.6*cm, cover_info.get("on_or_about", ""))
     
     c.drawString(x_mid + 0.1*cm, y1 - 0.4*cm, "REMARKS:")
     c.drawString(x_mid + 1*cm, y1 - 0.9*cm, "ORIGIN: " + cover_info.get("origin", ""))
