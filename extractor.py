@@ -6,21 +6,18 @@ import pypdfium2 as pdfium
 from google import genai
 from google.genai import types
 
-def pdf_to_images(pdf_bytes, rotate_angle=0):
+def pdf_to_images(pdf_bytes):
     pdf = pdfium.PdfDocument(pdf_bytes)
     images = []
     for i in range(len(pdf)):
         page = pdf[i]
         bitmap = page.render(scale=2)
-        pil_image = bitmap.to_pil()
-        if rotate_angle != 0:
-            pil_image = pil_image.rotate(rotate_angle, expand=True)
-        images.append(pil_image)
+        images.append(bitmap.to_pil())
     return images
 
-def extract_pack_data(api_key, pdf_bytes, rotate_angle=0):
+def extract_pack_data(api_key, pdf_bytes):
     try:
-        images = pdf_to_images(pdf_bytes, rotate_angle=rotate_angle)
+        images = pdf_to_images(pdf_bytes)
         client = genai.Client(api_key=api_key)
         
         prompt = """
@@ -69,7 +66,7 @@ def extract_pack_data(api_key, pdf_bytes, rotate_angle=0):
         
         # Pass all pages to the model
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.5-pro',
             contents=[*images, prompt],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
@@ -83,9 +80,9 @@ def extract_pack_data(api_key, pdf_bytes, rotate_angle=0):
     except Exception as e:
         raise Exception(f"Failed to extract pack data: {str(e)}")
 
-def extract_price_data(api_key, pdf_bytes, pack_data=None, rotate_angle=0):
+def extract_price_data(api_key, pdf_bytes, pack_data=None):
     try:
-        images = pdf_to_images(pdf_bytes, rotate_angle=rotate_angle)
+        images = pdf_to_images(pdf_bytes)
         client = genai.Client(api_key=api_key)
         
         reference_notes = ""
@@ -123,7 +120,7 @@ def extract_price_data(api_key, pdf_bytes, pack_data=None, rotate_angle=0):
         
         # Pass all pages to the model
         response = client.models.generate_content(
-            model='gemini-2.5-flash',
+            model='gemini-2.5-pro',
             contents=[*images, prompt],
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
