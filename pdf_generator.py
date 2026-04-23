@@ -223,18 +223,24 @@ def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
     c.line(2*cm, height - 3.8*cm, width - 2*cm, height - 3.8*cm)
     
     c.drawString(3.5*cm, height - 4.3*cm, "MARKS AND NOS")
-    c.drawCentredString(10*cm, height - 4.3*cm, "DESCRIPTION")
-    c.drawCentredString(13.5*cm, height - 4.3*cm, "QUANTITY (CASE)")
+    c.drawCentredString(10.5*cm, height - 4.3*cm, "DESCRIPTION")
+    c.drawCentredString(13.5*cm, height - 4.3*cm, "QUANTITY")
     c.drawCentredString(16*cm, height - 4.3*cm, "NET")
     c.drawCentredString(18.5*cm, height - 4.3*cm, "GROSS")
     
     c.line(2*cm, height - 4.5*cm, width - 2*cm, height - 4.5*cm)
     c.drawString(2*cm, height - 5.0*cm, "FRESH APPLE")
-    c.drawString(2*cm, height - 5.5*cm, "NO MARK")
+    c.drawString(2.5*cm, height - 5.5*cm, "NO MARK")
+    
+    c.drawCentredString(10.5*cm, height - 5.5*cm, "KG")
+    c.drawCentredString(13.5*cm, height - 5.5*cm, "CASE")
+    c.drawCentredString(16*cm, height - 5.5*cm, "KG")
+    c.drawCentredString(18.5*cm, height - 5.5*cm, "KG")
     
     y = height - 6.5*cm
     
-    last_combo = None
+    last_variety = None
+    last_grade = None
     
     for item in data:
         if y < 2*cm:
@@ -244,27 +250,41 @@ def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
             
         var = str(item.get('variety', '')).strip()
         grade = str(item.get('grade', '')).strip()
-        combo = f"{var} {grade}".strip()
         size = str(item.get('size', ''))
         qty = int(item.get('quantity', 0))
         net = qty * case_weight
         gross = qty * (case_weight + 1.0)
         
-        if combo != last_combo:
-            c.setDash(1, 2)
-            c.line(2*cm, y - 0.1*cm, 7.5*cm, y - 0.1*cm)
-            c.setDash()
+        is_new_group = (var != last_variety) or (grade != last_grade)
+        
+        if is_new_group and last_variety is not None:
+            y -= 0.6*cm
+            if y < 2*cm:
+                c.showPage()
+                c.setFont("Times-Roman", 10)
+                y = height - 2*cm
+                
+        c.setDash(1, 2)
+        c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
+        c.setDash()
+        
+        if var != last_variety:
+            c.setFont("Times-Roman", 10)
+            c.drawString(2.5*cm, y, var)
             
+        if is_new_group:
             c.setFont(cjk_font, 10)
-            c.drawRightString(7.5*cm, y, combo)
-            last_combo = combo
+            c.drawCentredString(6.5*cm, y, grade)
             
         c.setFont("Times-Roman", 10)
-        c.drawCentredString(10*cm, y, f"{size} p")
+        c.drawCentredString(8.5*cm, y, f"{size} p")
+        c.drawCentredString(10.5*cm, y, f"{case_weight:.1f}")
         c.drawCentredString(13.5*cm, y, str(qty))
         c.drawCentredString(16*cm, y, f"{net:.1f}")
         c.drawCentredString(18.5*cm, y, f"{gross:.1f}")
         
+        last_variety = var
+        last_grade = grade
         y -= 0.6*cm
 
     c.setDash()
@@ -418,13 +438,14 @@ def generate_invoice(data, price_data, order_no, cover_info, output_path, exclud
     
     c.line(2*cm, height - 4.5*cm, width - 2*cm, height - 4.5*cm)
     c.drawString(2*cm, height - 5.0*cm, "FRESH APPLE")
-    c.drawString(2*cm, height - 5.5*cm, "NO MARK")
+    c.drawString(2.5*cm, height - 5.5*cm, "NO MARK")
     c.drawRightString(width - 2*cm, height - 5.0*cm, "C&F : Keelung")
     c.line(16*cm, height - 5.2*cm, width - 2*cm, height - 5.2*cm)
     
     y = height - 6.5*cm
     
-    last_combo = None
+    last_variety = None
+    last_grade = None
     
     for item in processed_data:
         if y < 2*cm:
@@ -434,28 +455,41 @@ def generate_invoice(data, price_data, order_no, cover_info, output_path, exclud
             
         var = str(item.get('variety', '')).strip()
         grade = str(item.get('grade', '')).strip()
-        combo = f"{var} {grade}".strip()
         display_size = str(item.get('size', ''))
         qty = int(item.get('quantity', 0))
         
         p_val = item.get('_price', 0)
         amt = qty * p_val
         
-        if combo != last_combo:
-            c.setDash(1, 2)
-            c.line(2*cm, y - 0.1*cm, 7.5*cm, y - 0.1*cm)
-            c.setDash()
+        is_new_group = (var != last_variety) or (grade != last_grade)
+        
+        if is_new_group and last_variety is not None:
+            y -= 0.6*cm
+            if y < 2*cm:
+                c.showPage()
+                c.setFont("Times-Roman", 10)
+                y = height - 2*cm
+                
+        c.setDash(1, 2)
+        c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
+        c.setDash()
+        
+        if var != last_variety:
+            c.setFont("Times-Roman", 10)
+            c.drawString(2.5*cm, y, var)
             
+        if is_new_group:
             c.setFont(cjk_font, 10)
-            c.drawRightString(7.5*cm, y, combo)
-            last_combo = combo
+            c.drawCentredString(6.5*cm, y, grade)
             
         c.setFont("Times-Roman", 10)
-        c.drawCentredString(10*cm, y, display_size)
+        c.drawCentredString(9.5*cm, y, display_size)
         c.drawCentredString(13*cm, y, f"{qty} cs")
         c.drawCentredString(15.5*cm, y, f"¥{p_val:,.0f}")
         c.drawRightString(19*cm, y, f"¥{amt:,.0f}")
         
+        last_variety = var
+        last_grade = grade
         y -= 0.6*cm
         
     c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
