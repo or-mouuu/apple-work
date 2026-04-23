@@ -6,18 +6,21 @@ import pypdfium2 as pdfium
 from google import genai
 from google.genai import types
 
-def pdf_to_images(pdf_bytes):
+def pdf_to_images(pdf_bytes, rotate_angle=0):
     pdf = pdfium.PdfDocument(pdf_bytes)
     images = []
     for i in range(len(pdf)):
         page = pdf[i]
         bitmap = page.render(scale=2)
-        images.append(bitmap.to_pil())
+        pil_image = bitmap.to_pil()
+        if rotate_angle != 0:
+            pil_image = pil_image.rotate(rotate_angle, expand=True)
+        images.append(pil_image)
     return images
 
-def extract_pack_data(api_key, pdf_bytes):
+def extract_pack_data(api_key, pdf_bytes, rotate_angle=0):
     try:
-        images = pdf_to_images(pdf_bytes)
+        images = pdf_to_images(pdf_bytes, rotate_angle=rotate_angle)
         client = genai.Client(api_key=api_key)
         
         prompt = """
@@ -38,7 +41,8 @@ def extract_pack_data(api_key, pdf_bytes):
         DO NOT skip the first column (e.g., 20) in your reasoning, especially if previous rows had it blank.
         5. A common error is shifting numbers left or right when some columns are blank. Check the vertical grid lines carefully.
         6. On the far right of the table, there is an "出荷数" (Total Quantity) column. Trace it for each row.
-        7. Only after tracing all columns, put the final non-empty size/quantities into the "extracted_data" list, and the row total into the "row_totals" list.
+        7. CRITICAL: Strictly copy the "grade" verbatim (e.g., "アイリス赤特選 勝", "アイリス赤特選", "アイリス黒特選"). DO NOT drop suffixes like "勝" or drop prefixes. 
+        8. Only after tracing all columns, put the final non-empty size/quantities into the "extracted_data" list, and the row total into the "row_totals" list.
 
         You must ONLY return a valid JSON object with the following schema:
         {
@@ -79,9 +83,9 @@ def extract_pack_data(api_key, pdf_bytes):
     except Exception as e:
         raise Exception(f"Failed to extract pack data: {str(e)}")
 
-def extract_price_data(api_key, pdf_bytes, pack_data=None):
+def extract_price_data(api_key, pdf_bytes, pack_data=None, rotate_angle=0):
     try:
-        images = pdf_to_images(pdf_bytes)
+        images = pdf_to_images(pdf_bytes, rotate_angle=rotate_angle)
         client = genai.Client(api_key=api_key)
         
         reference_notes = ""
@@ -98,8 +102,10 @@ def extract_price_data(api_key, pdf_bytes, pack_data=None):
         prompt = f"""
         This is a handwritten price list (price-sample) tracking apple prices.
         CRITICAL INSTRUCTION: There are typically two tables on the page. The top one usually contains your purchase prices, and the BOTTOM one is the CNF table with actual selling prices.
-        You MUST ONLY extract prices from the BOTTOM (CNF) table. Ignore the top table completely.
+        CRITICAL INSTRUCTION: YOU MUST READ ALL PAGES. The CNF table might be on page 2.
+        You MUST ONLY extract prices from the BOTTOM (CNF) table across all pages. Ignore the top table completely.
         {reference_notes}
+        CRITICAL INSTRUCTION FOR GRADES: Look EXACTLY at the handwritten text. For example, if it says "勝特選", extract exactly "勝特選". DO NOT hallucinate "紅特選" or "立赤特選" if the characters are different. Match them to the provided Expected Grades carefully.
         There are sections for different varieties (like USN-1031 Shinano Sweet vs others like 名月).
         The columns are sizes (e.g. 32pup, 36p, 40p).
         The rows are grades (e.g. 勝, 赤特選).

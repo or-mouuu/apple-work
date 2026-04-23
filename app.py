@@ -35,8 +35,10 @@ st.header("第一步：匯入原始資料")
 col1, col2 = st.columns(2)
 with col1:
     pack_file = st.file_uploader("上傳「重量紀錄」掃描檔 (PDF)", type=["pdf"])
+    pack_rotate = st.selectbox("「重量紀錄」旋轉", [0, -90, -180, -270], index=0, format_func=lambda x: f"順時針 {abs(x)} 度" if x != 0 else "不旋轉")
 with col2:
     price_file = st.file_uploader("上傳「價格紀錄」掃描檔 (PDF)", type=["pdf"])
+    price_rotate = st.selectbox("「價格紀錄」旋轉", [0, -90, -180, -270], index=0, format_func=lambda x: f"順時針 {abs(x)} 度" if x != 0 else "不旋轉")
     
 order_no = st.text_input("輸入 注文番號 (例如: USN 1031)")
 
@@ -64,7 +66,8 @@ if st.button("利用 AI 自動辨識資料"):
                 try:
                     pack_bytes = pack_file.read()
                     st.session_state.pack_pdf_bytes = pack_bytes
-                    res = extract_pack_data(api_key, pack_bytes)
+                    st.session_state.pack_rotate = pack_rotate
+                    res = extract_pack_data(api_key, pack_bytes, rotate_angle=pack_rotate)
                     st.session_state.pack_data = res.get("pack_data", [])
                     st.session_state.row_totals = res.get("row_totals", [])
                     st.success("重量紀錄辨識成功！")
@@ -76,7 +79,8 @@ if st.button("利用 AI 自動辨識資料"):
                 try:
                     price_bytes = price_file.read()
                     st.session_state.price_pdf_bytes = price_bytes
-                    res = extract_price_data(api_key, price_bytes, st.session_state.pack_data)
+                    st.session_state.price_rotate = price_rotate
+                    res = extract_price_data(api_key, price_bytes, st.session_state.pack_data, rotate_angle=price_rotate)
                     st.session_state.price_data = res
                     st.success("價格紀錄辨識成功！")
                 except Exception as e:
@@ -149,7 +153,7 @@ with col_pack_img:
     st.caption("📄 原始掃描檔")
     if st.session_state.get('pack_pdf_bytes'):
         try:
-            images = pdf_to_images(st.session_state.pack_pdf_bytes)
+            images = pdf_to_images(st.session_state.pack_pdf_bytes, rotate_angle=st.session_state.get('pack_rotate', 0))
             for img in images:
                 st.image(img, use_container_width=True)
         except Exception as e:
@@ -159,7 +163,7 @@ with col_pack_img:
 
 with col_pack_data:
     st.caption("✏️ AI 辨識結果 (可編輯)")
-    edited_pack = st.data_editor(pack_df, num_rows="dynamic", key="pack_editor", use_container_width=True)
+    edited_pack = st.data_editor(pack_df, num_rows="dynamic", key="pack_editor", use_container_width=True, height=600)
 
 if st.session_state.get('row_totals'):
     st.markdown("### 🔍 出荷數加總驗證")
@@ -196,7 +200,7 @@ with col_price_img:
     st.caption("📄 原始掃描檔")
     if st.session_state.get('price_pdf_bytes'):
         try:
-            images = pdf_to_images(st.session_state.price_pdf_bytes)
+            images = pdf_to_images(st.session_state.price_pdf_bytes, rotate_angle=st.session_state.get('price_rotate', 0))
             for img in images:
                 st.image(img, use_container_width=True)
         except Exception as e:
@@ -206,7 +210,7 @@ with col_price_img:
 
 with col_price_data:
     st.caption("✏️ AI 辨識結果 (可編輯)")
-    edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor", use_container_width=True)
+    edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor", use_container_width=True, height=600)
     
     # Missing Price Warning
     try:
