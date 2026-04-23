@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from extractor import extract_pack_data, extract_price_data
+from extractor import extract_pack_data, extract_price_data, pdf_to_images
 from pdf_generator import generate_packing_list, generate_invoice, preprocess_invoice_data
 from google_sheets_updater import update_google_sheet, load_saved_data
 
@@ -62,7 +62,9 @@ if st.button("利用 AI 自動辨識資料"):
         if pack_file:
             with st.spinner("辨識重量紀錄中..."):
                 try:
-                    res = extract_pack_data(api_key, pack_file.read())
+                    pack_bytes = pack_file.read()
+                    st.session_state.pack_pdf_bytes = pack_bytes
+                    res = extract_pack_data(api_key, pack_bytes)
                     st.session_state.pack_data = res.get("pack_data", [])
                     st.session_state.row_totals = res.get("row_totals", [])
                     st.success("重量紀錄辨識成功！")
@@ -72,7 +74,9 @@ if st.button("利用 AI 自動辨識資料"):
         if price_file:
             with st.spinner("辨識價格紀錄中..."):
                 try:
-                    res = extract_price_data(api_key, price_file.read(), st.session_state.pack_data)
+                    price_bytes = price_file.read()
+                    st.session_state.price_pdf_bytes = price_bytes
+                    res = extract_price_data(api_key, price_bytes, st.session_state.pack_data)
                     st.session_state.price_data = res
                     st.success("價格紀錄辨識成功！")
                 except Exception as e:
@@ -134,10 +138,28 @@ with st.expander("🛠️ 批量更正「品種」與「等級」名稱", expand
         st.rerun()
 
 st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### 📦 重量紀錄")
 pack_df = pd.DataFrame(st.session_state.pack_data)
 if pack_df.empty:
     pack_df = pd.DataFrame(columns=["variety", "grade", "size", "quantity"])
-edited_pack = st.data_editor(pack_df, num_rows="dynamic", key="pack_editor")
+
+col_pack_img, col_pack_data = st.columns(2)
+
+with col_pack_img:
+    st.caption("📄 原始掃描檔")
+    if st.session_state.get('pack_pdf_bytes'):
+        try:
+            images = pdf_to_images(st.session_state.pack_pdf_bytes)
+            for img in images:
+                st.image(img, use_container_width=True)
+        except Exception as e:
+            st.error("圖片載入失敗")
+    else:
+        st.info("尚無上傳的掃描檔。")
+
+with col_pack_data:
+    st.caption("✏️ AI 辨識結果 (可編輯)")
+    edited_pack = st.data_editor(pack_df, num_rows="dynamic", key="pack_editor", use_container_width=True)
 
 if st.session_state.get('row_totals'):
     st.markdown("### 🔍 出荷數加總驗證")
@@ -161,30 +183,43 @@ if st.session_state.get('row_totals'):
             
         st.dataframe(merged_df.style.apply(highlight_diff, axis=1), use_container_width=True)
 
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### 💰 價格紀錄")
+
 price_df = pd.DataFrame(st.session_state.price_data)
 if price_df.empty:
     price_df = pd.DataFrame(columns=["variety", "grade", "size", "price"])
 
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("### 💰 價格紀錄")
+col_price_img, col_price_data = st.columns(2)
 
-# Check for missing prices using the current edited_pack and the initial price_df 
-# or we can use edited_price if we place it after st.data_editor.
-# Let's put the editor first, then the warning below it!
-edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor")
+with col_price_img:
+    st.caption("📄 原始掃描檔")
+    if st.session_state.get('price_pdf_bytes'):
+        try:
+            images = pdf_to_images(st.session_state.price_pdf_bytes)
+            for img in images:
+                st.image(img, use_container_width=True)
+        except Exception as e:
+            st.error("圖片載入失敗")
+    else:
+        st.info("尚無上傳的掃描檔。")
 
-# Missing Price Warning
-try:
-    current_pack = edited_pack.to_dict('records')
-    current_price = edited_price.to_dict('records')
-    processed_for_warning = preprocess_invoice_data(current_pack, current_price)
-    missing_prices = [item for item in processed_for_warning if item.get('_price', 0) == 0]
+with col_price_data:
+    st.caption("✏️ AI 辨識結果 (可編輯)")
+    edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor", use_container_width=True)
     
-    if missing_prices:
-        missing_names = sorted(list(set([f"{m.get('variety')} {m.get('grade')}" for m in missing_prices])))
-        st.warning(f"⚠️ **注意：以下品項目前缺少價格對應，計算將會是 ¥0：**\n\n" + ", ".join(missing_names) + "\n\n您可以選擇在上方表格手動新增對應的價格，或是勾選下方「在產生 Invoice 時自動排除缺少價格的品項」。")
-except Exception as e:
-    pass
+    # Missing Price Warning
+    try:
+        current_pack = edited_pack.to_dict('records')
+        current_price = edited_price.to_dict('records')
+        processed_for_warning = preprocess_invoice_data(current_pack, current_price)
+        missing_prices = [item for item in processed_for_warning if item.get('_price', 0) == 0]
+        
+        if missing_prices:
+            missing_names = sorted(list(set([f"{m.get('variety')} {m.get('grade')}" for m in missing_prices])))
+            st.warning(f"⚠️ **注意：以下品項目前缺少價格對應，計算將會是 ¥0：**\n\n" + ", ".join(missing_names) + "\n\n您可以選擇在上方表格手動新增對應的價格，或是勾選下方「在產生 Invoice 時自動排除缺少價格的品項」。")
+    except Exception as e:
+        pass
 
 
 st.markdown("---")
