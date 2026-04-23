@@ -181,32 +181,43 @@ def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
     c.showPage()
 
 
-def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
-    c = canvas.Canvas(output_path, pagesize=A4)
-    width, height = A4
-    cjk_font = register_font()
-    
-    total_qty = sum(int(item.get('quantity', 0)) for item in data)
-    total_net = total_qty * case_weight
-    total_gross = total_qty * (case_weight + 1.0)
-    
-    totals = {
-        'qty': total_qty,
-        'net': total_net,
-        'gross': total_gross,
-        'pallet': float(cover_info.get("pallet_weight", 0))
-    }
-    
-    cover_info['order_no'] = order_no
-    draw_cover_page(c, "PACKINGLIST", cover_info, totals, width, height, cjk_font)
-    
+def count_data_pages(data, height, is_packing_list):
+    pages = 1
+    y = height - 6.5*cm
+    last_variety = None
+    last_grade = None
+    for item in data:
+        var = str(item.get('variety', '')).strip()
+        grade = str(item.get('grade', '')).strip()
+        is_new_group = (var != last_variety) or (grade != last_grade)
+        
+        if is_new_group and last_variety is not None:
+            y -= 0.6*cm
+            if y < 4*cm:
+                pages += 1
+                y = height - 6.5*cm
+                
+        if y < 4*cm:
+            pages += 1
+            y = height - 6.5*cm
+            
+        y -= 0.6*cm
+        last_variety = var
+        last_grade = grade
+        
+    threshold = 4.5*cm if is_packing_list else 3*cm
+    if y < threshold:
+        pages += 1
+    return pages
+
+def draw_packing_list_header(c, order_no, page_idx, total_pages, width, height):
     c.setFont("Times-Bold", 16)
     c.drawCentredString(width/2.0, height - 2*cm, "Attached sheet for P/L")
-    
     c.setFont("Times-Roman", 10)
     c.drawString(2*cm, height - 3*cm, f"REF.NO.: {order_no}")
+    import datetime
     c.drawRightString(width - 2*cm, height - 3*cm, f"DATE: {datetime.date.today().strftime('%Y/%m/%d')}")
-    c.drawRightString(width - 2*cm, height - 3.5*cm, f"PAGE: 1/1")
+    c.drawRightString(width - 2*cm, height - 3.5*cm, f"PAGE: {page_idx}/{total_pages}")
     
     c.setLineWidth(1)
     c.line(2*cm, height - 3.7*cm, width - 2*cm, height - 3.7*cm)
@@ -226,18 +237,61 @@ def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
     c.drawCentredString(13.5*cm, height - 5.5*cm, "CASE")
     c.drawCentredString(16*cm, height - 5.5*cm, "KG")
     c.drawCentredString(18.5*cm, height - 5.5*cm, "KG")
+
+def draw_invoice_header(c, order_no, page_idx, total_pages, width, height):
+    c.setFont("Times-Bold", 16)
+    c.drawCentredString(width/2.0, height - 2*cm, "Attached sheet for I/V")
+    c.setFont("Times-Roman", 10)
+    c.drawString(2*cm, height - 3*cm, f"REF.NO.: {order_no}")
+    import datetime
+    c.drawRightString(width - 2*cm, height - 3*cm, f"DATE: {datetime.date.today().strftime('%Y/%m/%d')}")
+    c.drawRightString(width - 2*cm, height - 3.5*cm, f"PAGE: {page_idx}/{total_pages}")
     
+    c.setLineWidth(1)
+    c.line(2*cm, height - 3.7*cm, width - 2*cm, height - 3.7*cm)
+    c.line(2*cm, height - 3.8*cm, width - 2*cm, height - 3.8*cm)
+    
+    c.drawString(3.5*cm, height - 4.3*cm, "MARKS AND NOS")
+    c.drawCentredString(10*cm, height - 4.3*cm, "DESCRIPTION")
+    c.drawCentredString(13*cm, height - 4.3*cm, "QUANTITY")
+    c.drawCentredString(15.5*cm, height - 4.3*cm, "UNIT PRICE")
+    c.drawRightString(19*cm, height - 4.3*cm, "AMOUNT")
+    
+    c.line(2*cm, height - 4.5*cm, width - 2*cm, height - 4.5*cm)
+    c.drawString(2*cm, height - 5.0*cm, "FRESH APPLE")
+    c.drawString(2.5*cm, height - 5.5*cm, "NO MARK")
+    c.drawRightString(width - 2*cm, height - 5.0*cm, "C&F : Keelung")
+    c.line(16*cm, height - 5.2*cm, width - 2*cm, height - 5.2*cm)
+
+def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
+
+    c = canvas.Canvas(output_path, pagesize=A4)
+    width, height = A4
+    cjk_font = register_font()
+    
+    total_qty = sum(int(item.get('quantity', 0)) for item in data)
+    total_net = total_qty * case_weight
+    total_gross = total_qty * (case_weight + 1.0)
+    
+    totals = {
+        'qty': total_qty,
+        'net': total_net,
+        'gross': total_gross,
+        'pallet': float(cover_info.get("pallet_weight", 0))
+    }
+    
+    cover_info['order_no'] = order_no
+    draw_cover_page(c, "PACKINGLIST", cover_info, totals, width, height, cjk_font)
+    
+    total_pages = count_data_pages(data, height, True)
+    page_idx = 1
+    draw_packing_list_header(c, order_no, page_idx, total_pages, width, height)
     y = height - 6.5*cm
     
     last_variety = None
     last_grade = None
     
     for item in data:
-        if y < 2*cm:
-            c.showPage()
-            c.setFont("Times-Roman", 10)
-            y = height - 2*cm
-            
         var = str(item.get('variety', '')).strip()
         grade = str(item.get('grade', '')).strip()
         size = str(item.get('size', ''))
@@ -249,10 +303,21 @@ def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
         
         if is_new_group and last_variety is not None:
             y -= 0.6*cm
-            if y < 2*cm:
-                c.showPage()
+            if y < 4*cm:
                 c.setFont("Times-Roman", 10)
-                y = height - 2*cm
+                c.drawCentredString(width/2.0, 1.5*cm, "to be continued")
+                c.showPage()
+                page_idx += 1
+                draw_packing_list_header(c, order_no, page_idx, total_pages, width, height)
+                y = height - 6.5*cm
+                
+        if y < 4*cm:
+            c.setFont("Times-Roman", 10)
+            c.drawCentredString(width/2.0, 1.5*cm, "to be continued")
+            c.showPage()
+            page_idx += 1
+            draw_packing_list_header(c, order_no, page_idx, total_pages, width, height)
+            y = height - 6.5*cm
                 
         c.setDash(1, 2)
         c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
@@ -285,6 +350,15 @@ def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
     # Draw bottom border of the table
     c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
     
+    # Check if totals fit
+    if y < 4.5*cm:
+        c.setFont("Times-Roman", 10)
+        c.drawCentredString(width/2.0, 1.5*cm, "to be continued")
+        c.showPage()
+        page_idx += 1
+        draw_packing_list_header(c, order_no, page_idx, total_pages, width, height)
+        y = height - 6.5*cm
+
     # Render TOTAL on the second page for Packing List
     y_tot = y - 0.7*cm
     c.setFont("Times-Bold", 10)
@@ -437,41 +511,15 @@ def generate_invoice(data, price_data, order_no, cover_info, output_path, exclud
     cover_info['order_no'] = order_no
     draw_cover_page(c, "INVOICE", cover_info, totals, width, height, cjk_font)
     
-    c.setFont("Times-Bold", 16)
-    c.drawCentredString(width/2.0, height - 2*cm, "Attached sheet for I/V")
-    
-    c.setFont("Times-Roman", 10)
-    c.drawString(2*cm, height - 3*cm, f"REF.NO.: {order_no}")
-    c.drawRightString(width - 2*cm, height - 3*cm, f"DATE: {datetime.date.today().strftime('%Y/%m/%d')}")
-    c.drawRightString(width - 2*cm, height - 3.5*cm, f"PAGE: 1/1")
-    
-    c.setLineWidth(1)
-    c.line(2*cm, height - 3.7*cm, width - 2*cm, height - 3.7*cm)
-    c.line(2*cm, height - 3.8*cm, width - 2*cm, height - 3.8*cm)
-    
-    c.drawString(3.5*cm, height - 4.3*cm, "MARKS AND NOS")
-    c.drawCentredString(10*cm, height - 4.3*cm, "DESCRIPTION")
-    c.drawCentredString(13*cm, height - 4.3*cm, "QUANTITY")
-    c.drawCentredString(15.5*cm, height - 4.3*cm, "UNIT PRICE")
-    c.drawRightString(19*cm, height - 4.3*cm, "AMOUNT")
-    
-    c.line(2*cm, height - 4.5*cm, width - 2*cm, height - 4.5*cm)
-    c.drawString(2*cm, height - 5.0*cm, "FRESH APPLE")
-    c.drawString(2.5*cm, height - 5.5*cm, "NO MARK")
-    c.drawRightString(width - 2*cm, height - 5.0*cm, "C&F : Keelung")
-    c.line(16*cm, height - 5.2*cm, width - 2*cm, height - 5.2*cm)
-    
+    total_pages = count_data_pages(processed_data, height, False)
+    page_idx = 1
+    draw_invoice_header(c, order_no, page_idx, total_pages, width, height)
     y = height - 6.5*cm
     
     last_variety = None
     last_grade = None
     
     for item in processed_data:
-        if y < 2*cm:
-            c.showPage()
-            c.setFont("Times-Roman", 10)
-            y = height - 2*cm
-            
         var = str(item.get('variety', '')).strip()
         grade = str(item.get('grade', '')).strip()
         display_size = str(item.get('size', ''))
@@ -484,10 +532,21 @@ def generate_invoice(data, price_data, order_no, cover_info, output_path, exclud
         
         if is_new_group and last_variety is not None:
             y -= 0.6*cm
-            if y < 2*cm:
-                c.showPage()
+            if y < 4*cm:
                 c.setFont("Times-Roman", 10)
-                y = height - 2*cm
+                c.drawCentredString(width/2.0, 1.5*cm, "to be continued")
+                c.showPage()
+                page_idx += 1
+                draw_invoice_header(c, order_no, page_idx, total_pages, width, height)
+                y = height - 6.5*cm
+                
+        if y < 4*cm:
+            c.setFont("Times-Roman", 10)
+            c.drawCentredString(width/2.0, 1.5*cm, "to be continued")
+            c.showPage()
+            page_idx += 1
+            draw_invoice_header(c, order_no, page_idx, total_pages, width, height)
+            y = height - 6.5*cm
                 
         c.setDash(1, 2)
         c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
@@ -515,7 +574,18 @@ def generate_invoice(data, price_data, order_no, cover_info, output_path, exclud
         y -= 0.6*cm
         
     c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
+    
+    if y < 3*cm:
+        c.setFont("Times-Roman", 10)
+        c.drawCentredString(width/2.0, 1.5*cm, "to be continued")
+        c.showPage()
+        page_idx += 1
+        draw_invoice_header(c, order_no, page_idx, total_pages, width, height)
+        y = height - 6.5*cm
+        
+    c.setFont("Times-Bold", 10)
     c.drawString(10*cm, y - 0.8*cm, "TOTAL")
+    c.setFont("Times-Roman", 10)
     c.drawCentredString(13*cm, y - 0.8*cm, f"{total_qty} cs")
     c.drawRightString(19*cm, y - 0.8*cm, f"¥{total_amt:,.0f}")
 
