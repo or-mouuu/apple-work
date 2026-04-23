@@ -167,7 +167,7 @@ if st.session_state.get('row_totals'):
     
     temp_pack = edited_pack.copy()
     temp_pack['quantity'] = pd.to_numeric(temp_pack['quantity'], errors='coerce').fillna(0)
-    calc_df = temp_pack.groupby(['variety', 'grade'])['quantity'].sum().reset_index()
+    calc_df = temp_pack.groupby(['variety', 'grade'], sort=False)['quantity'].sum().reset_index()
     totals_df = pd.DataFrame(st.session_state.row_totals)
     
     if not totals_df.empty:
@@ -175,6 +175,17 @@ if st.session_state.get('row_totals'):
         merged_df.rename(columns={'quantity': '表格加總 (Quantity)', 'expected_total': '原始出荷數 (Expected)'}, inplace=True)
         merged_df['表格加總 (Quantity)'] = merged_df['表格加總 (Quantity)'].fillna(0).astype(int)
         merged_df['原始出荷數 (Expected)'] = merged_df['原始出荷數 (Expected)'].fillna(0).astype(int)
+        
+        # 加上合計列
+        total_calc = merged_df['表格加總 (Quantity)'].sum()
+        total_exp = merged_df['原始出荷數 (Expected)'].sum()
+        total_row = pd.DataFrame([{
+            'variety': '合計', 
+            'grade': '', 
+            '表格加總 (Quantity)': total_calc, 
+            '原始出荷數 (Expected)': total_exp
+        }])
+        merged_df = pd.concat([merged_df, total_row], ignore_index=True)
         
         def highlight_diff(row):
             if row['表格加總 (Quantity)'] != row['原始出荷數 (Expected)']:

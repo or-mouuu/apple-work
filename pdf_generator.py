@@ -88,7 +88,6 @@ def generate_packing_list(data, order_no, case_weight, output_path):
     c.drawString(2*cm, height - 5.5*cm, "NO MARK")
     
     y = height - 6.5*cm
-    data = sorted(data, key=lambda x: (str(x.get('variety', '')), str(x.get('grade', ''))))
     
     last_combo = None
     
@@ -272,7 +271,6 @@ def generate_invoice(data, price_data, order_no, output_path, exclude_zero_price
     if exclude_zero_price:
         processed_data = [item for item in processed_data if item.get('_price', 0) > 0]
         
-    processed_data = sorted(processed_data, key=lambda x: (str(x.get('variety', '')), str(x.get('grade', ''))))
     last_combo = None
     
     for item in processed_data:
