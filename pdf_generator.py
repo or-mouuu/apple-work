@@ -172,18 +172,8 @@ def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
     c.drawString(x1 + 1*cm, y_tot - 0.5*cm, "TOTAL")
     
     if doc_type == "PACKINGLIST":
-        c.drawCentredString(x1 + 10*cm, y_tot - 0.5*cm, f"{totals.get('qty', 0)}")
-        c.drawCentredString(x1 + 13.5*cm, y_tot - 0.5*cm, f"{totals.get('net', 0):.1f}")
-        c.drawCentredString(x1 + 16.5*cm, y_tot - 0.5*cm, f"{totals.get('gross', 0):.1f}")
-        
-        c.setFont("Times-Roman", 10)
-        c.drawString(x1 + 7*cm, y_tot - 1.5*cm, "Pallte and wrapping material etc.")
-        c.drawCentredString(x1 + 16.5*cm, y_tot - 1.5*cm, f"{totals.get('pallet', 0):.1f}")
-        c.line(x1 + 6.5*cm, y_tot - 1.7*cm, x2, y_tot - 1.7*cm)
-        
-        c.setFont("Times-Bold", 10)
-        c.drawString(x1 + 7*cm, y_tot - 2.2*cm, "TOTAL GROSS WEIGHT")
-        c.drawCentredString(x1 + 16.5*cm, y_tot - 2.2*cm, f"{totals.get('gross', 0) + totals.get('pallet', 0):.1f}")
+        # Packing list total moved to second page
+        pass
     else:
         c.drawCentredString(x1 + 10*cm, y_tot - 0.5*cm, f"{totals.get('qty', 0)}")
         c.drawCentredString(x1 + 16.5*cm, y_tot - 0.5*cm, f"¥{totals.get('amount', 0):,.0f}")
@@ -291,7 +281,33 @@ def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
         y -= 0.6*cm
 
     c.setDash()
+    
+    # Draw bottom border of the table
     c.line(2*cm, y - 0.2*cm, width - 2*cm, y - 0.2*cm)
+    
+    # Render TOTAL on the second page for Packing List
+    y_tot = y - 0.7*cm
+    c.setFont("Times-Bold", 10)
+    c.drawString(4*cm, y_tot, "TOTAL")
+    
+    c.setFont("Times-Bold", 10)
+    c.drawCentredString(13.5*cm, y_tot, f"{totals.get('qty', 0):,} CS")
+    c.drawCentredString(16*cm, y_tot, f"{totals.get('net', 0):,.1f} KG")
+    c.drawCentredString(18.5*cm, y_tot, f"{totals.get('gross', 0):,.1f} KG")
+    
+    y_pallet = y_tot - 1.0*cm
+    c.setFont("Times-Roman", 10)
+    c.drawString(10*cm, y_pallet, "Other packaging materials(pallet etc.)")
+    c.drawCentredString(18.5*cm, y_pallet, f"{totals.get('pallet', 0):.1f}")
+    
+    c.setLineWidth(1)
+    c.line(10*cm, y_pallet - 0.2*cm, width - 2*cm, y_pallet - 0.2*cm)
+    
+    y_final = y_pallet - 0.6*cm
+    c.setFont("Times-Bold", 10)
+    c.drawCentredString(13.5*cm, y_final, "TOTAL GROSS WEIGHT")
+    c.drawCentredString(18.5*cm, y_final, f"{totals.get('gross', 0) + totals.get('pallet', 0):,.1f} KG")
+    
     c.save()
     return output_path
 
