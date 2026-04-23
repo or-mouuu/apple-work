@@ -108,8 +108,8 @@ st.header("第二步：預覽與編輯結果")
 st.caption("您可以先利用「批量更正」功能把同一個錯字統一替換，或者直接在下方表格做個別數字修改以及新增/刪除資料。")
 
 with st.expander("🛠️ 批量更正「品種」與「等級」名稱", expanded=False):
-    all_vars = sorted(list(set([i.get('variety','') for i in st.session_state.pack_data] + [i.get('variety','') for i in st.session_state.price_data])))
-    all_grades = sorted(list(set([i.get('grade','') for i in st.session_state.pack_data] + [i.get('grade','') for i in st.session_state.price_data])))
+    all_vars = sorted(list(set([str(i.get('variety') or '') for i in st.session_state.pack_data] + [str(i.get('variety') or '') for i in st.session_state.price_data])))
+    all_grades = sorted(list(set([str(i.get('grade') or '') for i in st.session_state.pack_data] + [str(i.get('grade') or '') for i in st.session_state.price_data])))
     
     colA, colB = st.columns(2)
     with colA:
