@@ -3,7 +3,7 @@ import pandas as pd
 import json
 import os
 from extractor import extract_pack_data, extract_price_data
-from pdf_generator import generate_packing_list, generate_invoice
+from pdf_generator import generate_packing_list, generate_invoice, preprocess_invoice_data
 from google_sheets_updater import update_google_sheet, load_saved_data
 
 st.set_page_config(page_title="蘋果出貨文件生成工具", layout="wide")
@@ -164,12 +164,34 @@ if st.session_state.get('row_totals'):
 price_df = pd.DataFrame(st.session_state.price_data)
 if price_df.empty:
     price_df = pd.DataFrame(columns=["variety", "grade", "size", "price"])
+
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### 💰 價格紀錄")
+
+# Check for missing prices using the current edited_pack and the initial price_df 
+# or we can use edited_price if we place it after st.data_editor.
+# Let's put the editor first, then the warning below it!
 edited_price = st.data_editor(price_df, num_rows="dynamic", key="price_editor")
+
+# Missing Price Warning
+try:
+    current_pack = edited_pack.to_dict('records')
+    current_price = edited_price.to_dict('records')
+    processed_for_warning = preprocess_invoice_data(current_pack, current_price)
+    missing_prices = [item for item in processed_for_warning if item.get('_price', 0) == 0]
+    
+    if missing_prices:
+        missing_names = sorted(list(set([f"{m.get('variety')} {m.get('grade')}" for m in missing_prices])))
+        st.warning(f"⚠️ **注意：以下品項目前缺少價格對應，計算將會是 ¥0：**\n\n" + ", ".join(missing_names) + "\n\n您可以選擇在上方表格手動新增對應的價格，或是勾選下方「在產生 Invoice 時自動排除缺少價格的品項」。")
+except Exception as e:
+    pass
+
 
 st.markdown("---")
 st.header("第三步：產生最終檔案與寫入總表")
 
 case_weight = st.number_input("設定每櫃淨重 (Net Weight / Case), 預設 11kg", value=11.0, step=0.1)
+exclude_zero = st.checkbox("在產生 Invoice 時自動排除缺少價格 (¥0) 的品項", value=True)
 
 if st.button("生成 PDF 檔案並更新總表"):
     if edited_pack.empty:
@@ -187,7 +209,7 @@ if st.button("生成 PDF 檔案並更新總表"):
                 inv_path = os.path.join("output", "Invoice_Output.pdf")
                 
                 generate_packing_list(pack_list, order_no, case_weight, pl_path)
-                generate_invoice(pack_list, price_list, order_no, inv_path)
+                generate_invoice(pack_list, price_list, order_no, inv_path, exclude_zero_price=exclude_zero)
                 
                 with open(pl_path, "rb") as f:
                     st.session_state.pl_bytes = f.read()

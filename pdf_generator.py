@@ -26,17 +26,36 @@ def get_price(var, grade, size, price_data):
     n_var = normalize(var)
     n_size = normalize(size)
     
+    target_full = n_var + n_grade
+    
     # 1. Strict match on grade and size
     for p in price_data:
+        p_var = normalize(p.get('variety', ''))
+        if p_var and n_var and p_var != n_var: continue
+            
         p_grade = normalize(p.get('grade', ''))
         p_size = normalize(p.get('size', ''))
-        if p_grade and p_grade in (n_var + n_grade) and p_size == n_size:
+        
+        # Check grade match
+        grade_match = False
+        p_full = p_var + p_grade
+        if p_grade and p_grade in target_full: grade_match = True
+        elif target_full in p_full: grade_match = True
+        
+        if grade_match and p_size == n_size:
             return int(p.get('price', 0))
             
     # 2. Fallback: match only on grade and variety
     for p in price_data:
+        p_var = normalize(p.get('variety', ''))
+        if p_var and n_var and p_var != n_var: continue
+            
         p_grade = normalize(p.get('grade', ''))
-        if p_grade and p_grade in (n_var + n_grade):
+        p_full = p_var + p_grade
+        
+        if p_grade and p_grade in target_full:
+            return int(p.get('price', 0))
+        elif target_full in p_full:
             return int(p.get('price', 0))
             
     return 0
@@ -114,11 +133,19 @@ def preprocess_invoice_data(data, price_data):
         n_grade = normalize(grade)
         n_var = normalize(var)
         n_size = normalize(size)
+        target_full = n_var + n_grade
         
         matched_prices = []
         for p in price_list:
+            p_var = normalize(p.get('variety', ''))
+            if p_var and n_var and p_var != n_var: continue
+                
             p_grade = normalize(p.get('grade', ''))
-            if p_grade and p_grade in (n_var + n_grade):
+            p_full = p_var + p_grade
+            
+            if p_grade and p_grade in target_full:
+                matched_prices.append(p)
+            elif target_full in p_full:
                 matched_prices.append(p)
                 
         for p in matched_prices:
@@ -194,7 +221,7 @@ def preprocess_invoice_data(data, price_data):
                 if min_s == max_s:
                     v['size_display'] = f"{min_s} p"
                 else:
-                    v['size_display'] = f"{min_s}p～{max_s}p"
+                    v['size_display'] = f"{min_s}p - {max_s}p"
             else:
                 v['size_display'] = "pup"
         
@@ -207,7 +234,7 @@ def preprocess_invoice_data(data, price_data):
         })
     return result
 
-def generate_invoice(data, price_data, order_no, output_path):
+def generate_invoice(data, price_data, order_no, output_path, exclude_zero_price=False):
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     cjk_font = register_font()
@@ -241,6 +268,10 @@ def generate_invoice(data, price_data, order_no, output_path):
     total_amt = 0
     
     processed_data = preprocess_invoice_data(data, price_data)
+    
+    if exclude_zero_price:
+        processed_data = [item for item in processed_data if item.get('_price', 0) > 0]
+        
     processed_data = sorted(processed_data, key=lambda x: (str(x.get('variety', '')), str(x.get('grade', ''))))
     last_combo = None
     
