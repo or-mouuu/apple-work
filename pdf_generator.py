@@ -60,10 +60,157 @@ def get_price(var, grade, size, price_data):
             
     return 0
 
-def generate_packing_list(data, order_no, case_weight, output_path):
+def draw_cover_page(c, doc_type, cover_info, totals, width, height, cjk_font):
+    c.setFont("Times-Roman", 16)
+    if doc_type == "PACKINGLIST":
+        c.drawCentredString(width/2.0, height - 2.5*cm, "PACKINGLIST")
+    else:
+        c.drawCentredString(width/2.0, height - 2.5*cm, "I N V O I C E")
+        
+    c.setFont("Times-Roman", 10)
+    c.setLineWidth(1)
+    
+    x1, x_mid, x_mid2, x2 = 1.5*cm, 10.5*cm, 15*cm, width - 1.5*cm
+    y0 = height - 3*cm
+    y1 = y0 - 3*cm
+    y2 = y1 - 3*cm
+    y3 = y2 - 3.5*cm
+    
+    c.line(x1, y1, x_mid, y1)
+    c.line(x1, y2, x_mid, y2)
+    
+    y_ref_bottom = y0 - 1.5*cm
+    y_booking_bottom = y_ref_bottom - 1.5*cm
+    y_shipped_bottom = y_booking_bottom - 2.5*cm
+    y_remarks_bottom = y2
+    
+    c.line(x_mid, y_ref_bottom, x2, y_ref_bottom)
+    c.line(x_mid, y_booking_bottom, x2, y_booking_bottom)
+    c.line(x_mid, y_shipped_bottom, x2, y_shipped_bottom)
+    c.line(x_mid, y_remarks_bottom, x2, y_remarks_bottom)
+    
+    c.rect(x1, y3, x2 - x1, y0 - y3)
+    c.line(x_mid, y3, x_mid, y0)
+    c.line(x_mid2, y_booking_bottom, x_mid2, y0)
+    
+    c.drawString(x1 + 0.1*cm, y0 - 0.4*cm, "SHIPPER:")
+    c.drawString(x1 + 0.3*cm, y0 - 0.8*cm, cover_info.get("shipper_name", ""))
+    c.drawString(x1 + 0.3*cm, y0 - 1.2*cm, cover_info.get("shipper_addr1", ""))
+    c.drawString(x1 + 0.3*cm, y0 - 1.6*cm, cover_info.get("shipper_addr2", ""))
+    c.drawString(x1 + 1.5*cm, y0 - 2.0*cm, "TEL: " + cover_info.get("shipper_tel", ""))
+    c.drawString(x1 + 1.5*cm, y0 - 2.4*cm, "FAX: " + cover_info.get("shipper_fax", ""))
+    
+    c.drawString(x1 + 0.1*cm, y1 - 0.4*cm, "CONSIGNEE:")
+    c.drawString(x1 + 0.3*cm, y1 - 0.8*cm, cover_info.get("consignee_name", ""))
+    c.drawString(x1 + 0.3*cm, y1 - 1.2*cm, cover_info.get("consignee_addr1", ""))
+    c.drawString(x1 + 0.3*cm, y1 - 1.6*cm, cover_info.get("consignee_addr2", ""))
+    c.drawString(x1 + 1.5*cm, y1 - 2.0*cm, "TEL: " + cover_info.get("consignee_tel", ""))
+    c.drawString(x1 + 1.5*cm, y1 - 2.4*cm, "FAX: " + cover_info.get("consignee_fax", ""))
+    
+    c.drawString(x1 + 0.1*cm, y2 - 0.4*cm, "NOTIFY PATY:")
+    
+    c.drawString(x_mid + 0.1*cm, y0 - 0.4*cm, "REF.NO.")
+    c.drawCentredString((x_mid + x_mid2)/2, y0 - 1.0*cm, cover_info.get("order_no", ""))
+    c.drawString(x_mid2 + 0.1*cm, y0 - 0.4*cm, "DATE")
+    c.drawRightString(x2 - 0.2*cm, y0 - 1.0*cm, cover_info.get("date", ""))
+    
+    c.drawString(x_mid + 0.1*cm, y_ref_bottom - 0.4*cm, "BOOKING AGNET")
+    c.drawCentredString((x_mid + x_mid2)/2, y_ref_bottom - 1.0*cm, cover_info.get("booking_agent", ""))
+    c.drawString(x_mid2 + 0.1*cm, y_ref_bottom - 0.4*cm, "BOOKING NO.")
+    c.drawRightString(x2 - 0.2*cm, y_ref_bottom - 1.0*cm, cover_info.get("booking_no", ""))
+    
+    c.drawString(x_mid + 0.1*cm, y_booking_bottom - 0.4*cm, "SHIPPED PER MV")
+    c.drawCentredString(x_mid + 2.5*cm, y_booking_bottom - 0.9*cm, cover_info.get("shipped_per", ""))
+    c.drawString(x_mid + 0.5*cm, y_booking_bottom - 1.4*cm, "FROM: " + cover_info.get("from_port", ""))
+    c.drawString(x_mid2 + 0.5*cm, y_booking_bottom - 1.4*cm, "TO: " + cover_info.get("to_port", ""))
+    c.drawString(x_mid + 0.1*cm, y_booking_bottom - 1.9*cm, "ON OR ABOUT")
+    c.drawCentredString(x_mid + 2.5*cm, y_booking_bottom - 2.3*cm, cover_info.get("on_or_about", ""))
+    
+    c.drawString(x_mid + 0.1*cm, y_shipped_bottom - 0.4*cm, "REMARKS:")
+    c.drawString(x_mid + 1*cm, y_shipped_bottom - 0.9*cm, "ORIGIN: " + cover_info.get("origin", ""))
+    c.drawString(x_mid + 1*cm, y_shipped_bottom - 1.4*cm, "BRAND: " + cover_info.get("brand", ""))
+    c.drawString(x_mid2 + 1*cm, y_shipped_bottom - 1.4*cm, "ICE BOX")
+    c.drawString(x_mid + 1*cm, y_shipped_bottom - 1.9*cm, "PALLET: " + str(cover_info.get("pallet", "")))
+    
+    c.drawString(x_mid + 0.1*cm, y2 - 0.4*cm, "ALSO NOTIFY:")
+    
+    y_tbl = y3 - 0.5*cm
+    c.line(x1, y_tbl, x2, y_tbl)
+    c.line(x1, y_tbl - 0.1*cm, x2, y_tbl - 0.1*cm)
+    
+    c.drawString(x1 + 1*cm, y_tbl - 0.5*cm, "MARKS AND NOS")
+    c.drawCentredString(x1 + 7*cm, y_tbl - 0.5*cm, "DESCRIPTION")
+    
+    if doc_type == "PACKINGLIST":
+        c.drawCentredString(x1 + 10*cm, y_tbl - 0.5*cm, "QUANTITY")
+        c.drawCentredString(x1 + 13.5*cm, y_tbl - 0.5*cm, "NET")
+        c.drawCentredString(x1 + 16.5*cm, y_tbl - 0.5*cm, "GROSS")
+    else:
+        c.drawCentredString(x1 + 10*cm, y_tbl - 0.5*cm, "QUANTITY")
+        c.drawCentredString(x1 + 13.5*cm, y_tbl - 0.5*cm, "UNIT PRICE")
+        c.drawCentredString(x1 + 16.5*cm, y_tbl - 0.5*cm, "AMOUNT")
+        
+    c.line(x1, y_tbl - 0.7*cm, x2, y_tbl - 0.7*cm)
+    
+    c.drawString(x1, y_tbl - 1.3*cm, "FRESH APPLE")
+    c.drawString(x1 + 1*cm, y_tbl - 1.8*cm, "NO MARK")
+    
+    if doc_type == "PACKINGLIST":
+        c.drawCentredString(x1 + 7*cm, y_tbl - 1.8*cm, "KG")
+        c.drawCentredString(x1 + 10*cm, y_tbl - 1.8*cm, "CASE")
+        c.drawCentredString(x1 + 13.5*cm, y_tbl - 1.8*cm, "KG")
+        c.drawCentredString(x1 + 16.5*cm, y_tbl - 1.8*cm, "KG")
+    else:
+        c.setFont("Times-Bold", 10)
+        c.drawCentredString(x1 + 15*cm, y_tbl - 1.3*cm, "C&F: Keelung")
+        c.line(x1 + 12*cm, y_tbl - 1.4*cm, x2, y_tbl - 1.4*cm)
+        c.setFont("Times-Roman", 10)
+        
+    c.drawCentredString(x1 + 7*cm, y_tbl - 7*cm, "As per attacment")
+    
+    y_tot = 5*cm
+    c.line(x1, y_tot, x2, y_tot)
+    c.setFont("Times-Bold", 10)
+    c.drawString(x1 + 1*cm, y_tot - 0.5*cm, "TOTAL")
+    
+    if doc_type == "PACKINGLIST":
+        c.drawCentredString(x1 + 10*cm, y_tot - 0.5*cm, f"{totals.get('qty', 0)}")
+        c.drawCentredString(x1 + 13.5*cm, y_tot - 0.5*cm, f"{totals.get('net', 0):.1f}")
+        c.drawCentredString(x1 + 16.5*cm, y_tot - 0.5*cm, f"{totals.get('gross', 0):.1f}")
+        
+        c.setFont("Times-Roman", 10)
+        c.drawString(x1 + 7*cm, y_tot - 1.5*cm, "Pallte and wrapping material etc.")
+        c.drawCentredString(x1 + 16.5*cm, y_tot - 1.5*cm, f"{totals.get('pallet', 0):.1f}")
+        c.line(x1 + 6.5*cm, y_tot - 1.7*cm, x2, y_tot - 1.7*cm)
+        
+        c.setFont("Times-Bold", 10)
+        c.drawString(x1 + 7*cm, y_tot - 2.2*cm, "TOTAL GROSS WEIGHT")
+        c.drawCentredString(x1 + 16.5*cm, y_tot - 2.2*cm, f"{totals.get('gross', 0) + totals.get('pallet', 0):.1f}")
+    else:
+        c.drawCentredString(x1 + 10*cm, y_tot - 0.5*cm, f"{totals.get('qty', 0)}")
+        c.drawCentredString(x1 + 16.5*cm, y_tot - 0.5*cm, f"¥{totals.get('amount', 0):,.0f}")
+        
+    c.showPage()
+
+
+def generate_packing_list(data, order_no, case_weight, cover_info, output_path):
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     cjk_font = register_font()
+    
+    total_qty = sum(int(item.get('quantity', 0)) for item in data)
+    total_net = total_qty * case_weight
+    total_gross = total_qty * (case_weight + 1.0)
+    
+    totals = {
+        'qty': total_qty,
+        'net': total_net,
+        'gross': total_gross,
+        'pallet': float(cover_info.get("pallet_weight", 0))
+    }
+    
+    cover_info['order_no'] = order_no
+    draw_cover_page(c, "PACKINGLIST", cover_info, totals, width, height, cjk_font)
     
     c.setFont("Times-Bold", 16)
     c.drawCentredString(width/2.0, height - 2*cm, "Attached sheet for P/L")
@@ -233,10 +380,25 @@ def preprocess_invoice_data(data, price_data):
         })
     return result
 
-def generate_invoice(data, price_data, order_no, output_path, exclude_zero_price=False):
+def generate_invoice(data, price_data, order_no, cover_info, output_path, exclude_zero_price=False):
     c = canvas.Canvas(output_path, pagesize=A4)
     width, height = A4
     cjk_font = register_font()
+    
+    processed_data = preprocess_invoice_data(data, price_data)
+    if exclude_zero_price:
+        processed_data = [item for item in processed_data if item.get('_price', 0) > 0]
+        
+    total_qty = sum(int(item.get('quantity', 0)) for item in processed_data)
+    total_amt = sum(int(item.get('quantity', 0)) * int(item.get('_price', 0)) for item in processed_data)
+    
+    totals = {
+        'qty': total_qty,
+        'amount': total_amt
+    }
+    
+    cover_info['order_no'] = order_no
+    draw_cover_page(c, "INVOICE", cover_info, totals, width, height, cjk_font)
     
     c.setFont("Times-Bold", 16)
     c.drawCentredString(width/2.0, height - 2*cm, "Attached sheet for I/V")
@@ -263,14 +425,7 @@ def generate_invoice(data, price_data, order_no, output_path, exclude_zero_price
     c.line(16*cm, height - 5.2*cm, width - 2*cm, height - 5.2*cm)
     
     y = height - 6.5*cm
-    total_qty = 0
-    total_amt = 0
     
-    processed_data = preprocess_invoice_data(data, price_data)
-    
-    if exclude_zero_price:
-        processed_data = [item for item in processed_data if item.get('_price', 0) > 0]
-        
     last_combo = None
     
     for item in processed_data:
@@ -287,8 +442,6 @@ def generate_invoice(data, price_data, order_no, output_path, exclude_zero_price
         
         p_val = item.get('_price', 0)
         amt = qty * p_val
-        total_qty += qty
-        total_amt += amt
         
         if combo != last_combo:
             c.setDash(1, 2)

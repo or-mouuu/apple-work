@@ -236,6 +236,65 @@ with col_price_data:
 st.markdown("---")
 st.header("第三步：產生最終檔案與寫入總表")
 
+st.markdown("### 📝 封面資訊 (Cover Page Details)")
+with st.expander("展開編輯封面資訊 (預設為截圖中的文字)", expanded=False):
+    import datetime
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        st.markdown("**SHIPPER**")
+        shipper_name = st.text_input("Name", "UNIS CO.,LTD.", key="shipper_name")
+        shipper_addr1 = st.text_input("Address 1", "3-4-16 DENEN HIROSAKI CITY AOMORI JAPAN", key="shipper_addr1")
+        shipper_addr2 = st.text_input("Address 2", "036-8086", key="shipper_addr2")
+        shipper_tel = st.text_input("TEL", "+81-172-55-8975", key="shipper_tel")
+        shipper_fax = st.text_input("FAX", "+81-172-55-8976", key="shipper_fax")
+        
+        st.markdown("**CONSIGNEE**")
+        consignee_name = st.text_input("Consignee Name", "S.N.K. TRADING CO.,LTD.", key="consignee_name")
+        consignee_addr1 = st.text_input("Consignee Address 1", "11F., NO.131, FUCHENG 2ND ST., FENGSHAN DIST.,", key="consignee_addr1")
+        consignee_addr2 = st.text_input("Consignee Address 2", "KAOHSIUNG 830640 TAIWAN", key="consignee_addr2")
+        consignee_tel = st.text_input("Consignee TEL", "+886-7-8117189", key="consignee_tel")
+        consignee_fax = st.text_input("Consignee FAX", "+886-7-8117189", key="consignee_fax")
+        
+    with col_c2:
+        date = st.text_input("DATE", datetime.date.today().strftime('%Y/%m/%d'), key="date")
+        booking_agent = st.text_input("BOOKING AGENT", "WAN HAI LINES", key="booking_agent")
+        booking_no = st.text_input("BOOKING NO.", "008 EA 22992", key="booking_no")
+        shipped_per = st.text_input("SHIPPED PER MV", "WAN HAI 376 S004", key="shipped_per")
+        from_port = st.text_input("FROM", "YOKOHAMA", key="from_port")
+        to_port = st.text_input("TO", "KEELUNG", key="to_port")
+        on_or_about = st.text_input("ON OR ABOUT", "2024/11/2", key="on_or_about")
+        
+        st.markdown("**REMARKS**")
+        origin = st.text_input("ORIGIN", "AOMORI", key="origin")
+        brand = st.text_input("BRAND", "SHICHIFUKUJIN", key="brand")
+        pallet_count = st.text_input("PALLET (數量)", "21", key="pallet_count")
+        
+    pallet_weight_total = st.number_input("棧板與包裝總重量 (Pallte and wrapping material etc.) KG", value=500.0, step=10.0)
+
+cover_info = {
+    "shipper_name": shipper_name,
+    "shipper_addr1": shipper_addr1,
+    "shipper_addr2": shipper_addr2,
+    "shipper_tel": shipper_tel,
+    "shipper_fax": shipper_fax,
+    "consignee_name": consignee_name,
+    "consignee_addr1": consignee_addr1,
+    "consignee_addr2": consignee_addr2,
+    "consignee_tel": consignee_tel,
+    "consignee_fax": consignee_fax,
+    "date": date,
+    "booking_agent": booking_agent,
+    "booking_no": booking_no,
+    "shipped_per": shipped_per,
+    "from_port": from_port,
+    "to_port": to_port,
+    "on_or_about": on_or_about,
+    "origin": origin,
+    "brand": brand,
+    "pallet": pallet_count,
+    "pallet_weight": pallet_weight_total
+}
+
 case_weight = st.number_input("設定每櫃淨重 (Net Weight / Case), 預設 11kg", value=11.0, step=0.1)
 exclude_zero = st.checkbox("在產生 Invoice 時自動排除缺少價格 (¥0) 的品項", value=True)
 
@@ -254,8 +313,8 @@ if st.button("生成 PDF 檔案並更新總表"):
                 pl_path = os.path.join("output", "PackingList_Output.pdf")
                 inv_path = os.path.join("output", "Invoice_Output.pdf")
                 
-                generate_packing_list(pack_list, order_no, case_weight, pl_path)
-                generate_invoice(pack_list, price_list, order_no, inv_path, exclude_zero_price=exclude_zero)
+                generate_packing_list(pack_list, order_no, case_weight, cover_info, pl_path)
+                generate_invoice(pack_list, price_list, order_no, cover_info, inv_path, exclude_zero_price=exclude_zero)
                 
                 with open(pl_path, "rb") as f:
                     st.session_state.pl_bytes = f.read()
