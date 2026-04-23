@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from extractor import extract_pack_data, extract_price_data, pdf_to_images
+from extractor import extract_pack_data, extract_price_data, file_to_images
 from pdf_generator import generate_packing_list, generate_invoice, preprocess_invoice_data
 from google_sheets_updater import update_google_sheet, load_saved_data
 
@@ -34,9 +34,9 @@ else:
 st.header("第一步：匯入原始資料")
 col1, col2 = st.columns(2)
 with col1:
-    pack_file = st.file_uploader("上傳「重量紀錄」掃描檔 (PDF)", type=["pdf"])
+    pack_file = st.file_uploader("上傳「重量紀錄」掃描檔 (PDF 或照片)", type=["pdf", "png", "jpg", "jpeg"])
 with col2:
-    price_file = st.file_uploader("上傳「價格紀錄」掃描檔 (PDF)", type=["pdf"])
+    price_file = st.file_uploader("上傳「價格紀錄」掃描檔 (PDF 或照片)", type=["pdf", "png", "jpg", "jpeg"])
     
 order_no = st.text_input("輸入 注文番號 (例如: USN 1031)")
 
@@ -57,7 +57,7 @@ if st.button("利用 AI 自動辨識資料"):
     if not api_key:
         st.error("請先在左側欄位確認系統設定！")
     elif not pack_file and not price_file:
-         st.warning("請先上傳 PDF 檔案！")
+         st.warning("請先上傳 PDF 或圖片檔案！")
     else:
         if pack_file:
             with st.spinner("辨識重量紀錄中..."):
@@ -149,7 +149,7 @@ with col_pack_img:
     st.caption("📄 原始掃描檔")
     if st.session_state.get('pack_pdf_bytes'):
         try:
-            images = pdf_to_images(st.session_state.pack_pdf_bytes)
+            images = file_to_images(st.session_state.pack_pdf_bytes)
             for img in images:
                 st.image(img, use_container_width=True)
         except Exception as e:
@@ -207,7 +207,7 @@ with col_price_img:
     st.caption("📄 原始掃描檔")
     if st.session_state.get('price_pdf_bytes'):
         try:
-            images = pdf_to_images(st.session_state.price_pdf_bytes)
+            images = file_to_images(st.session_state.price_pdf_bytes)
             for img in images:
                 st.image(img, use_container_width=True)
         except Exception as e:

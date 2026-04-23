@@ -6,18 +6,24 @@ import pypdfium2 as pdfium
 from google import genai
 from google.genai import types
 
-def pdf_to_images(pdf_bytes):
-    pdf = pdfium.PdfDocument(pdf_bytes)
-    images = []
-    for i in range(len(pdf)):
-        page = pdf[i]
-        bitmap = page.render(scale=2)
-        images.append(bitmap.to_pil())
-    return images
-
-def extract_pack_data(api_key, pdf_bytes):
+def file_to_images(file_bytes):
     try:
-        images = pdf_to_images(pdf_bytes)
+        img = Image.open(io.BytesIO(file_bytes))
+        img.verify()
+        img = Image.open(io.BytesIO(file_bytes))
+        return [img]
+    except Exception:
+        pdf = pdfium.PdfDocument(file_bytes)
+        images = []
+        for i in range(len(pdf)):
+            page = pdf[i]
+            bitmap = page.render(scale=2)
+            images.append(bitmap.to_pil())
+        return images
+
+def extract_pack_data(api_key, file_bytes):
+    try:
+        images = file_to_images(file_bytes)
         client = genai.Client(api_key=api_key)
         
         prompt = """
@@ -80,9 +86,9 @@ def extract_pack_data(api_key, pdf_bytes):
     except Exception as e:
         raise Exception(f"Failed to extract pack data: {str(e)}")
 
-def extract_price_data(api_key, pdf_bytes, pack_data=None):
+def extract_price_data(api_key, file_bytes, pack_data=None):
     try:
-        images = pdf_to_images(pdf_bytes)
+        images = file_to_images(file_bytes)
         client = genai.Client(api_key=api_key)
         
         reference_notes = ""
