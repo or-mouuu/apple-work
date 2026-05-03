@@ -3,7 +3,7 @@ import pandas as pd
 import json
 import os
 from extractor import extract_pack_data, extract_price_data, file_to_images
-from pdf_generator import generate_packing_list, generate_invoice, preprocess_invoice_data
+from excel_generator import create_excel_document, get_price
 from google_sheets_updater import update_google_sheet, load_saved_data
 
 st.set_page_config(page_title="蘋果出貨文件生成工具", layout="wide")
@@ -46,12 +46,8 @@ if 'row_totals' not in st.session_state:
     st.session_state.row_totals = []
 if 'price_data' not in st.session_state:
     st.session_state.price_data = []
-if 'pdf_generated' not in st.session_state:
-    st.session_state.pdf_generated = False
-if 'pl_bytes' not in st.session_state:
-    st.session_state.pl_bytes = None
-if 'inv_bytes' not in st.session_state:
-    st.session_state.inv_bytes = None
+if 'excel_bytes' not in st.session_state:
+    st.session_state.excel_bytes = None
 
 if st.button("利用 AI 自動辨識資料"):
     if not google_creds:
@@ -223,12 +219,14 @@ with col_price_data:
     try:
         current_pack = edited_pack.to_dict('records')
         current_price = edited_price.to_dict('records')
-        processed_for_warning = preprocess_invoice_data(current_pack, current_price)
-        missing_prices = [item for item in processed_for_warning if item.get('_price', 0) == 0]
-        
+        missing_prices = []
+        for p in current_pack:
+            if get_price(p.get('variety',''), p.get('grade',''), p.get('size',''), current_price) == 0:
+                missing_prices.append(p)
+                
         if missing_prices:
             missing_names = sorted(list(set([f"{m.get('variety')} {m.get('grade')}" for m in missing_prices])))
-            st.warning(f"⚠️ **注意：以下品項目前缺少價格對應，計算將會是 ¥0：**\n\n" + ", ".join(missing_names) + "\n\n您可以選擇在上方表格手動新增對應的價格，或是勾選下方「在產生 Invoice 時自動排除缺少價格的品項」。")
+            st.warning(f"⚠️ **注意：以下品項目前缺少價格對應，計算將會是 ¥0：**\n\n" + ", ".join(missing_names) + "\n\n您可以選擇在上方表格手動新增對應的價格，或是勾選下方「在產生文件時自動排除缺少價格的品項」。")
     except Exception as e:
         pass
 
@@ -299,9 +297,9 @@ cover_info = {
     "pallet_weight": pallet_weight_total
 }
 
-exclude_zero = st.checkbox("在產生 Invoice 時自動排除缺少價格 (¥0) 的品項", value=True)
+exclude_zero = st.checkbox("在產生文件時自動排除缺少價格 (¥0) 的品項", value=True)
 
-if st.button("生成 PDF 檔案並更新總表"):
+if st.button("生成 Excel 檔案並更新總表"):
     if edited_pack.empty:
         st.error("沒有重量紀錄資料，無法產生檔案。")
     elif not order_no:
@@ -313,18 +311,14 @@ if st.button("生成 PDF 檔案並更新總表"):
                 price_list = edited_price.to_dict('records')
                 
                 os.makedirs("output", exist_ok=True)
-                pl_path = os.path.join("output", "PackingList_Output.pdf")
-                inv_path = os.path.join("output", "Invoice_Output.pdf")
+                excel_path = os.path.join("output", "Invoice_PackingList.xlsx")
                 
-                generate_packing_list(pack_list, order_no, case_weight, cover_info, pl_path)
-                generate_invoice(pack_list, price_list, order_no, cover_info, inv_path, exclude_zero_price=exclude_zero)
+                create_excel_document(pack_list, price_list, order_no, case_weight, cover_info, excel_path, exclude_zero_price=exclude_zero)
                 
-                with open(pl_path, "rb") as f:
-                    st.session_state.pl_bytes = f.read()
-                with open(inv_path, "rb") as f:
-                    st.session_state.inv_bytes = f.read()
+                with open(excel_path, "rb") as f:
+                    st.session_state.excel_bytes = f.read()
                 
-                st.session_state.pdf_generated = True
+                st.session_state.excel_generated = True
                 
                 # Google Sheets Update
                 if sheet_url and google_creds:
@@ -338,12 +332,11 @@ if st.button("生成 PDF 檔案並更新總表"):
                 else:
                     st.warning("偵測不到 Google 連線資訊，自動跳過總表更新。")
                     
-                st.success("🎉 PDF 產生完畢！請往下捲動下載檔案。")
+                st.success("🎉 Excel 產生完畢！請往下捲動下載檔案。")
                 
             except Exception as e:
                 st.error(f"產生過程中發生意料之外的錯誤: {e}")
 
-if st.session_state.pdf_generated and st.session_state.pl_bytes and st.session_state.inv_bytes:
+if st.session_state.get('excel_generated') and st.session_state.excel_bytes:
     st.markdown("### 檔案下載區")
-    st.download_button("📥 下載 Packing List (裝箱單)", st.session_state.pl_bytes, file_name=f"{order_no}_PackingList.pdf", mime="application/pdf")
-    st.download_button("📥 下載 Invoice (明細單)", st.session_state.inv_bytes, file_name=f"{order_no}_Invoice.pdf", mime="application/pdf")
+    st.download_button("📥 下載 Invoice / Packing List (合併 Excel 版)", st.session_state.excel_bytes, file_name=f"{order_no}_Invoice_PackingList.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
