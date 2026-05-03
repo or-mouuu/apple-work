@@ -5,6 +5,19 @@ from PIL import Image
 import pypdfium2 as pdfium
 from google import genai
 from google.genai import types
+from google.oauth2.service_account import Credentials
+
+def get_vertex_client(google_creds_str, location="us-central1"):
+    creds_dict = json.loads(google_creds_str)
+    credentials = Credentials.from_service_account_info(creds_dict)
+    project_id = creds_dict.get("project_id")
+    return genai.Client(
+        vertexai=True,
+        project=project_id,
+        location=location,
+        credentials=credentials
+    )
+
 
 def file_to_images(file_bytes):
     try:
@@ -21,10 +34,10 @@ def file_to_images(file_bytes):
             images.append(bitmap.to_pil())
         return images
 
-def extract_pack_data(api_key, file_bytes):
+def extract_pack_data(google_creds_str, file_bytes, location="us-central1"):
     try:
         images = file_to_images(file_bytes)
-        client = genai.Client(api_key=api_key)
+        client = get_vertex_client(google_creds_str, location)
         
         prompt = """
         This is a shipping advice (pack-sample) tracking apple qualities and quantities.
@@ -86,10 +99,10 @@ def extract_pack_data(api_key, file_bytes):
     except Exception as e:
         raise Exception(f"Failed to extract pack data: {str(e)}")
 
-def extract_price_data(api_key, file_bytes, pack_data=None):
+def extract_price_data(google_creds_str, file_bytes, pack_data=None, location="us-central1"):
     try:
         images = file_to_images(file_bytes)
-        client = genai.Client(api_key=api_key)
+        client = get_vertex_client(google_creds_str, location)
         
         reference_notes = ""
         if pack_data:

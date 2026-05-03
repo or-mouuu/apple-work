@@ -16,13 +16,13 @@ app_password = st.sidebar.text_input("請輸入系統密碼", type="password")
 if app_password == "unis5888":
     st.sidebar.success("授權成功！系統環境已自動載入。")
     try:
-        api_key = st.secrets["GEMINI_API_KEY"]
         sheet_url = st.secrets["GOOGLE_SHEET_URL"]
         google_creds = st.secrets["GOOGLE_CREDS_JSON"]
+        vertex_location = st.secrets.get("VERTEX_LOCATION", "us-central1")
         st.session_state.api_key_valid = True
     except Exception as e:
-        st.sidebar.error("⚠️ 尚未設定好參數，請到後台設定 Secrets。")
-        api_key, sheet_url, google_creds = "", "", ""
+        st.sidebar.error(f"⚠️ 尚未設定好參數，請到後台設定 Secrets。(錯誤：{str(e)})")
+        sheet_url, google_creds, vertex_location = "", "", "us-central1"
         st.session_state.api_key_valid = False
 else:
     if app_password:
@@ -54,7 +54,7 @@ if 'inv_bytes' not in st.session_state:
     st.session_state.inv_bytes = None
 
 if st.button("利用 AI 自動辨識資料"):
-    if not api_key:
+    if not google_creds:
         st.error("請先在左側欄位確認系統設定！")
     elif not pack_file and not price_file:
          st.warning("請先上傳 PDF 或圖片檔案！")
@@ -64,7 +64,7 @@ if st.button("利用 AI 自動辨識資料"):
                 try:
                     pack_bytes = pack_file.read()
                     st.session_state.pack_pdf_bytes = pack_bytes
-                    res = extract_pack_data(api_key, pack_bytes)
+                    res = extract_pack_data(google_creds, pack_bytes, location=vertex_location)
                     st.session_state.pack_data = res.get("pack_data", [])
                     st.session_state.row_totals = res.get("row_totals", [])
                     st.success("重量紀錄辨識成功！")
@@ -76,7 +76,7 @@ if st.button("利用 AI 自動辨識資料"):
                 try:
                     price_bytes = price_file.read()
                     st.session_state.price_pdf_bytes = price_bytes
-                    res = extract_price_data(api_key, price_bytes, st.session_state.pack_data)
+                    res = extract_price_data(google_creds, price_bytes, st.session_state.pack_data, location=vertex_location)
                     st.session_state.price_data = res
                     st.success("價格紀錄辨識成功！")
                 except Exception as e:

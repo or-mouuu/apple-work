@@ -8,3 +8,4 @@ venv/
 .venv/
 output/
 .DS_Store
+.streamlit/
