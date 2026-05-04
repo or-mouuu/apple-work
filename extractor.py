@@ -9,8 +9,9 @@ from google.oauth2.service_account import Credentials
 
 def get_vertex_client(google_creds_str, location="us-central1"):
     creds_dict = json.loads(google_creds_str)
-    credentials = Credentials.from_service_account_info(creds_dict)
-    project_id = creds_dict.get("project_id")
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+    credentials = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    project_id = "gen-lang-client-0898586036"
     return genai.Client(
         vertexai=True,
         project=project_id,
